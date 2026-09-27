@@ -42,6 +42,19 @@ jobs:
         run: npm run build
       - run: npm run typecheck
       - run: npm run lint
+      - name: Verify built app HTTP routes (no live payments)
+        env:
+          ARCLENOS_LOCAL_PREVIEW: "true"
+        run: |
+          npm run preview > /tmp/arclenos-preview.log 2>&1 &
+          preview_pid=$!
+          trap 'kill "$preview_pid" 2>/dev/null || true' EXIT
+          for i in $(seq 1 35); do
+            if curl -fsS --max-time 2 http://127.0.0.1:8081/ > /dev/null; then break; fi
+            if ! kill -0 "$preview_pid" 2>/dev/null; then cat /tmp/arclenos-preview.log; exit 1; fi
+            sleep 1
+          done
+          npm run smoke:live -- http://127.0.0.1:8081
   contracts:
     runs-on: ubuntu-latest
     timeout-minutes: 30
