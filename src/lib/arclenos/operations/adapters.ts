@@ -61,6 +61,17 @@ export async function ingest(db: Database,signal: AbortSignal,fetcher: typeof fe
 export async function executeOperation(db: Database,job: Job,signal: AbortSignal,env: Record<string,string|undefined>=process.env): Promise<unknown> {
  if(job.kind==='rpc.health') return rpcHealth(db,signal,configuredRpcEndpoints(env));
  if(job.kind==='intelligence.ingest') return ingest(db,signal);
+ if(job.kind==='deployment.reconcile') {
+  const id=job.input.deploymentId;
+  if(typeof id!=='string'||!id||id.length>100)throw new BlockedOperation('Invalid deployment job ID');
+  const {loadFactoryConfig,createRpc}=await import('../deployment/chain');
+  const {reconcileDeployment}=await import('../deployment/lifecycle');
+  return reconcileDeployment(db,createRpc(db,configuredRpcEndpoints(env),signal),loadFactoryConfig(env),id);
+ }
+ if(job.kind==='payment.reconcile') {
+  const {reconcileCommerce}=await import('../commerce/service.server');
+  return reconcileCommerce();
+ }
  if(job.kind==='audit.daily' || job.kind==='policy.audit') {
   const [jobs]=await db.query(`SELECT count(*) FILTER(WHERE state='FAILED')::integer AS failed,count(*) FILTER(WHERE state='RUNNING' AND lease_until<now())::integer AS expired FROM operation_jobs`);
   const unhealthy=await db.query(`SELECT adapter,failures,last_success,circuit_until FROM operation_health WHERE failures>0`);
