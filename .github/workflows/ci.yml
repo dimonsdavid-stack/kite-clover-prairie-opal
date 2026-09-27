@@ -10,6 +10,22 @@ jobs:
   application:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: arclenos_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d arclenos_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/arclenos_ci
     steps:
       - uses: actions/checkout@v4
         with:
@@ -34,6 +50,7 @@ jobs:
         if: github.ref != 'refs/heads/chatgpt/production-build-hardening' && github.event_name != 'workflow_dispatch'
         run: git diff --exit-code -- package-lock.json
       - run: npm ci --no-audit --no-fund
+      - run: npm run db:migrate
       - run: npm run verify:source
       - run: npm test
       - name: Build and generate TanStack's route types (preview-only database fallback)
