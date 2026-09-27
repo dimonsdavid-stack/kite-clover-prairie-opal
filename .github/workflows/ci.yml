@@ -1,0 +1,58 @@
+name: ARCLENOS CI
+on:
+  push:
+    branches: [main, chatgpt/production-build-hardening]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  application:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Synchronize root lockfile
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Save dependency lock on the isolated build branch
+        if: github.event_name == 'push' && github.ref == 'refs/heads/chatgpt/production-build-hardening'
+        run: |
+          if ! git diff --quiet -- package-lock.json; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add package-lock.json
+            git commit -m 'chore: synchronize production dependency lock'
+            git push origin HEAD:chatgpt/production-build-hardening
+          fi
+      - name: Require committed lock on main and pull requests
+        if: github.ref != 'refs/heads/chatgpt/production-build-hardening' && github.event_name != 'workflow_dispatch'
+        run: git diff --exit-code -- package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm run verify:source
+      - run: npm test
+      - run: npm run typecheck
+      - run: npm run lint
+      - name: Build (preview-only database fallback)
+        env:
+          ARCLENOS_LOCAL_PREVIEW: "true"
+        run: npm run build
+  contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: contracts/package-lock.json
+      - uses: foundry-rs/foundry-toolchain@v1
+      - run: npm ci --prefix contracts --no-audit --no-fund
+      - run: cd contracts && forge build
+      - run: cd contracts && forge test -vvv
