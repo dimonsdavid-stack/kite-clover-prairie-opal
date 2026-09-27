@@ -1,0 +1,12 @@
+{
+  "name": "@arclenos/contracts",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "build": "forge build",
+    "test": "forge test -vvv",
+    "test:fork": "forge test --match-path test/fork/*.t.sol -vvv",
+    "fmt": "forge fmt --check"
+  },
+  "dependencies": { "@openzeppelin/contracts": "5.4.0", "@foundry-rs/forge": "1.4.4" }
+}

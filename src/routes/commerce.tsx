@@ -1,103 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { toast } from "sonner";
 import { Shell, Panel, Stat } from "@/components/arclenos/shell";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { attemptSku, loadCommerce, quoteSku } from "@/lib/arclenos/fns";
+import { loadCommerce } from "@/lib/arclenos/fns";
 import { usd } from "@/lib/arclenos/format";
-
-export const Route = createFileRoute("/commerce")({
-  loader: () => loadCommerce(),
-  component: CommercePage,
-});
-
-function CommercePage() {
-  const data = Route.useLoaderData();
-  const [active, setActive] = useState<string | null>(null);
-  const [payload, setPayload] = useState<string>("");
-  const [busy, setBusy] = useState(false);
-
-  async function quote(id: string) {
-    setBusy(true);
-    try {
-      const q = await quoteSku({ data: { skuId: id } });
-      setActive(id);
-      setPayload(JSON.stringify(q, null, 2));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function settle(id: string) {
-    setBusy(true);
-    try {
-      const r = await attemptSku({ data: { skuId: id, payment: null } });
-      setActive(id);
-      setPayload(JSON.stringify(r, null, 2));
-      toast.message(r.status === "PAYMENT_REQUIRED" ? "402 Payment Required" : r.status);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <Shell
-      kicker="ARCLENØS Commerce"
-      title="Paid machine APIs. Real 402s."
-      lede="Request → requirement → payment → verification → settlement → receipt. Settlement is never faked. Without a founder treasury payTo, quotes still emit; capture stays BLOCKED."
-    >
-      <div className="mx-auto max-w-7xl space-y-8 px-4 py-10 sm:px-6">
-        <div className="grid gap-4 md:grid-cols-3">
-          <Panel>
-            <Stat label="SKUs" value={String(data.skus.length)} hint="USDC on Base" />
-          </Panel>
-          <Panel>
-            <Stat
-              label="Treasury payTo"
-              value={data.treasurySet ? "configured" : "unset"}
-              hint={data.treasurySet ? "Facilitator still required" : "Settlement BLOCKED"}
-            />
-          </Panel>
-          <Panel>
-            <Stat
-              label="Recorded revenue"
-              value={usd(data.revenue.reduce((a, r) => a + r.amountUsd, 0), 2)}
-              hint={data.revenue.length ? `${data.revenue.length} events` : "none — not invented"}
-            />
-          </Panel>
-        </div>
-        <div className="grid gap-6 lg:grid-cols-2">
-          <div className="space-y-3">
-            {data.skus.map((s) => (
-              <Panel key={s.id}>
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <h3 className="font-serif text-lg">{s.name}</h3>
-                    <p className="mt-1 text-sm text-muted-foreground">{s.description}</p>
-                    <p className="tape mt-2 text-xs text-muted-foreground">{s.resource}</p>
-                  </div>
-                  <Badge tone="idle">${s.usdc} USDC</Badge>
-                </div>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <Button type="button" size="sm" variant="secondary" disabled={busy} onClick={() => void quote(s.id)}>
-                    Quote x402
-                  </Button>
-                  <Button type="button" size="sm" disabled={busy} onClick={() => void settle(s.id)}>
-                    Call without payment
-                  </Button>
-                </div>
-              </Panel>
-            ))}
-          </div>
-          <Panel>
-            <h2 className="font-serif text-xl">{active ?? "Requirement"}</h2>
-            <pre className="mt-4 overflow-x-auto text-xs leading-relaxed text-muted-foreground">
-              {payload || "Quote a SKU to inspect the machine-readable requirement."}
-            </pre>
-          </Panel>
-        </div>
-      </div>
-    </Shell>
-  );
+export const Route = createFileRoute("/commerce")({loader:()=>loadCommerce(),component:CommercePage});
+const composition={archetype:'x402-commerce',primitives:['factory','lineage-registry','x402-adapter'],feeBps:{protocol:2000,creator:3000,referrer:1000,builder:1000,treasury:3000},caps:{maxTvlUsd:25000,maxDepositUsd:2500,maxDailyOutflowUsd:1000},pauseGuards:true,circuitBreaker:true};
+function CommercePage(){
+ const data=Route.useLoaderData();const[active,setActive]=useState(data.skus[1]?.id??'sim.stress');const[body,setBody]=useState(JSON.stringify({composition},null,2));const[proof,setProof]=useState('');const[result,setResult]=useState('');const[busy,setBusy]=useState(false);const[status,setStatus]=useState<number|null>(null);
+ const sku=data.skus.find(s=>s.id===active);
+ function select(id:string){setActive(id);setProof('');setStatus(null);setResult('');setBody(JSON.stringify(id==='intel.brief'?{opportunityId:''}:{composition},null,2));}
+ async function call(paid:boolean){if(!sku)return;setBusy(true);try{JSON.parse(body);const response=await fetch(sku.resource,{method:'POST',headers:{'content-type':'application/json',...(paid?{'PAYMENT-SIGNATURE':proof.trim()}:{})},body});setStatus(response.status);setResult(JSON.stringify({status:response.status,paymentRequired:response.headers.get('PAYMENT-REQUIRED'),paymentResponse:response.headers.get('PAYMENT-RESPONSE'),body:await response.json()},null,2));}catch(e){setResult(e instanceof Error?e.message:'Request failed');}finally{setBusy(false);}}
+ return <Shell kicker="ARCLENØS Commerce" title="Buy a useful API response." lede="Base USDC payments for opportunity briefs, economic simulations and configuration reviews. Inspect the request and price, then submit a signed x402 authorization."><div className="mx-auto max-w-7xl space-y-8 px-4 py-10 sm:px-6">
+ <div className="grid gap-4 md:grid-cols-3"><Panel><Stat label="Services" value={String(data.skus.length)} hint="x402 v2 · Base USDC"/></Panel><Panel><Stat label="Treasury recipient" value={data.treasurySet?'configured':'unset'} hint="Live payments require facilitator and chain verification"/></Panel><Panel><Stat label="Settled customer revenue" value={usd(data.revenue.reduce((a,r)=>a+r.amountUsd,0),2)} hint={`${data.revenue.length} verified economic events`}/></Panel></div>
+ <div className="grid gap-6 lg:grid-cols-2"><div className="space-y-3">{data.skus.map(s=><Panel key={s.id}><div className="flex items-start justify-between gap-3"><div className="min-w-0"><h2 className="font-serif text-lg">{s.name}</h2><p className="mt-1 text-sm text-muted-foreground">{s.description}</p><p className="tape mt-2 break-all text-xs text-muted-foreground">POST {s.resource}</p></div><Badge tone={s.id===active?'ok':'idle'}>${s.usdc} USDC</Badge></div><Button className="mt-4 min-h-11" type="button" variant="secondary" disabled={busy} onClick={()=>select(s.id)}>Inspect {s.name.toLowerCase()}</Button></Panel>)}<Panel><p className="text-sm text-muted-foreground">The API returns 503 while commerce is uncommissioned. A 402 response contains the live payment requirements. A successful paid response includes the purchased result and a persistent receipt. Internal transfers are excluded from customer revenue.</p><a className="mt-3 inline-block underline" href="/developers">Developer integration</a></Panel></div>
+ <Panel><h2 className="font-serif text-xl">{sku?.name} request</h2><label className="mt-4 block text-sm" htmlFor="commerce-body">Request JSON</label><textarea id="commerce-body" className="mt-2 min-h-64 w-full rounded-md border border-border bg-background p-3 font-mono text-xs" value={body} onChange={e=>{setBody(e.target.value);setProof('');}} disabled={busy}/><Button className="mt-3 min-h-11" disabled={busy} onClick={()=>void call(false)}>{busy?'Requesting…':'Request payment requirements'}</Button><label className="mt-6 block text-sm" htmlFor="commerce-proof">Signed PAYMENT-SIGNATURE</label><p className="mt-1 text-xs text-muted-foreground">Use an x402-compatible client to sign the returned requirement. This authorization can transfer the displayed USDC amount. Never paste a private key or seed phrase.</p><textarea id="commerce-proof" className="mt-2 min-h-24 w-full rounded-md border border-border bg-background p-3 font-mono text-xs" value={proof} onChange={e=>setProof(e.target.value)} placeholder="Base64-encoded x402 v2 payment payload" autoComplete="off" disabled={busy}/><Button className="mt-3 min-h-11" disabled={busy||!proof.trim()} onClick={()=>void call(true)}>Submit authorization · ${sku?.usdc} USDC</Button><div className="mt-6" role="status" aria-live="polite"><h3 className="text-sm font-medium">{status?`HTTP ${status}`:'Response'}</h3><pre className="mt-2 max-h-96 overflow-auto whitespace-pre-wrap break-all text-xs leading-relaxed text-muted-foreground">{result||'Select a service and request its payment requirements.'}</pre></div></Panel></div></div></Shell>;
 }

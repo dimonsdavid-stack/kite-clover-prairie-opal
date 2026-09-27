@@ -176,6 +176,9 @@ async function createSql(): Promise<Sql> {
         "or a server route loader, never from client code.",
     );
   }
+  if (process.env.NODE_ENV === "production" && dbSource === "pglite" && process.env.ARCLENOS_LOCAL_PREVIEW !== "true") {
+    throw new Error("Production requires durable DATABASE_URL");
+  }
   return dbSource === "neon" ? createNeonSql() : createPgliteSql();
 }
 
@@ -229,7 +232,7 @@ export function ensureDbReady(): Promise<void> {
 const globalBoot = globalThis as typeof globalThis & {
   __pgBootstrapPromise__?: Promise<void>;
 };
-if (typeof window === "undefined" && dbSource === "pglite") {
+if (typeof window === "undefined" && dbSource === "pglite" && process.env.NODE_ENV !== "production") {
   globalBoot.__pgBootstrapPromise__ ??= ensureDbReady().catch((err) => {
     globalBoot.__pgBootstrapPromise__ = undefined;
     console.error("[db] PGLite bootstrap failed:", err);

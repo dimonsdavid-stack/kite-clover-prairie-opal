@@ -1,9 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import type { Archetype, Composition } from "./types";
+import type { Composition } from "./types";
 import { ARCHETYPES } from "./catalog";
 
-const compositionSchema = z.object({
+export const compositionSchema = z.object({
   archetype: z.enum([
     "yield-vault",
     "launch-controller",
@@ -12,18 +12,18 @@ const compositionSchema = z.object({
     "market-instrument",
     "attribution-network",
   ]),
-  primitives: z.array(z.string()),
+  primitives: z.array(z.string().min(1).max(80)).max(30),
   feeBps: z.object({
-    protocol: z.number(),
-    creator: z.number(),
-    referrer: z.number(),
-    builder: z.number(),
-    treasury: z.number(),
+    protocol: z.number().finite().nonnegative(),
+    creator: z.number().finite().nonnegative(),
+    referrer: z.number().finite().nonnegative(),
+    builder: z.number().finite().nonnegative(),
+    treasury: z.number().finite().nonnegative(),
   }),
   caps: z.object({
-    maxTvlUsd: z.number(),
-    maxDepositUsd: z.number(),
-    maxDailyOutflowUsd: z.number(),
+    maxTvlUsd: z.number().finite().nonnegative(),
+    maxDepositUsd: z.number().finite().nonnegative(),
+    maxDailyOutflowUsd: z.number().finite().nonnegative(),
   }),
   pauseGuards: z.boolean(),
   circuitBreaker: z.boolean(),
@@ -41,6 +41,9 @@ export const loadIntelligence = createServerFn({ method: "GET" }).handler(async 
 });
 
 export const refreshIntelligence = createServerFn({ method: "POST" }).handler(async () => {
+    const { authorizeAction } = await import("./access.server");
+    await authorizeAction("operator");
+
   const { ingestOpportunities } = await import("./runtime.server");
   const g = globalThis as typeof globalThis & { __arcCache?: Record<string, unknown> };
   if (g.__arcCache) delete g.__arcCache.opps;
@@ -80,17 +83,26 @@ export const loadVenture = createServerFn({ method: "GET" })
   });
 
 export const loadOperations = createServerFn({ method: "GET" }).handler(async () => {
+    const { authorizeAction } = await import("./access.server");
+    await authorizeAction("operator");
+
   const { operationsBundle } = await import("./runtime.server");
   return operationsBundle();
 });
 
 export const loadCapital = createServerFn({ method: "GET" }).handler(async () => {
+    const { authorizeAction } = await import("./access.server");
+    await authorizeAction("operator");
+
   const { capitalSnapshot, getHealth, listRevenue } = await import("./runtime.server");
   const [health, revenue] = await Promise.all([getHealth(), listRevenue()]);
   return { ...capitalSnapshot(), health, revenue };
 });
 
 export const loadNetwork = createServerFn({ method: "GET" }).handler(async () => {
+    const { authorizeAction } = await import("./access.server");
+    await authorizeAction("operator");
+
   const { listReferrals, funnelCounts } = await import("./runtime.server");
   return { referrals: await listReferrals(), funnel: await funnelCounts() };
 });
@@ -102,20 +114,26 @@ export const loadCommerce = createServerFn({ method: "GET" }).handler(async () =
     skus: commerceCatalog(),
     quotes: commerceCatalog().map((s) => ({ id: s.id, ...x402Quote(s.id, origin) })),
     revenue: await listRevenue(),
-    treasurySet: Boolean(process.env.ARCLENOS_TREASURY),
+    treasurySet: Boolean(process.env.ARCLENOS_TREASURY_ADDRESS),
   };
 });
 
 export const quoteSku = createServerFn({ method: "POST" })
-  .validator(z.object({ skuId: z.string() }))
+  .validator(z.object({ skuId: z.string().min(1).max(80) }))
   .handler(async ({ data }) => {
+    const { authorizeAction } = await import("./access.server");
+    await authorizeAction("public");
+
     const { x402Quote } = await import("./runtime.server");
     return x402Quote(data.skuId, "https://arclenos.com");
   });
 
 export const attemptSku = createServerFn({ method: "POST" })
-  .validator(z.object({ skuId: z.string(), payment: z.string().nullable() }))
+  .validator(z.object({ skuId: z.string().min(1).max(80), payment: z.string().max(16384).nullable() }))
   .handler(async ({ data }) => {
+    const { authorizeAction } = await import("./access.server");
+    await authorizeAction("public");
+
     const { x402SettleAttempt } = await import("./runtime.server");
     return x402SettleAttempt(data.skuId, data.payment, "https://arclenos.com");
   });
@@ -123,43 +141,59 @@ export const attemptSku = createServerFn({ method: "POST" })
 export const runCompose = createServerFn({ method: "POST" })
   .validator(
     z.object({
-      opportunityId: z.string().nullable(),
+      opportunityId: z.string().max(160).nullable(),
       opportunityTitle: z.string().nullable(),
-      archetype: z.custom<Archetype>(),
-      name: z.string(),
+      archetype: compositionSchema.shape.archetype,
+      name: z.string().trim().min(1).max(160),
       composition: compositionSchema,
       createdBy: z.enum(["agent", "operator"]),
     }),
   )
   .handler(async ({ data }) => {
+    const { authorizeAction } = await import("./access.server");
+    const actor = await authorizeAction("operator");
+
     const { composeVenture } = await import("./runtime.server");
     return composeVenture({
       ...data,
+      createdBy: actor.role === "agent" ? "agent" : "operator",
       composition: data.composition as Composition,
     });
   });
 
 export const runHeal = createServerFn({ method: "POST" }).handler(async () => {
+    const { authorizeAction } = await import("./access.server");
+    await authorizeAction("operator");
+
   const { runHealing } = await import("./runtime.server");
   return runHealing();
 });
 
 export const runAudit = createServerFn({ method: "POST" }).handler(async () => {
+    const { authorizeAction } = await import("./access.server");
+    await authorizeAction("operator");
+
   const { runDailyAudit } = await import("./runtime.server");
   return runDailyAudit();
 });
 
 export const trackFunnel = createServerFn({ method: "POST" })
-  .validator(z.object({ name: z.string(), path: z.string(), meta: z.record(z.string(), z.unknown()).optional() }))
+  .validator(z.object({ name: z.string().trim().min(1).max(160), path: z.string(), meta: z.record(z.string(), z.unknown()).optional() }))
   .handler(async ({ data }) => {
+    const { authorizeAction } = await import("./access.server");
+    await authorizeAction("public");
+
     const { recordFunnel } = await import("./runtime.server");
     await recordFunnel(data.name, data.path, data.meta ?? {});
     return { ok: true as const };
   });
 
 export const trackReferral = createServerFn({ method: "POST" })
-  .validator(z.object({ code: z.string() }))
+  .validator(z.object({ code: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/) }))
   .handler(async ({ data }) => {
+    const { authorizeAction } = await import("./access.server");
+    await authorizeAction("public");
+
     const { clickReferral } = await import("./runtime.server");
     return clickReferral(data.code);
   });
@@ -167,6 +201,9 @@ export const trackReferral = createServerFn({ method: "POST" })
 export const requestBrief = createServerFn({ method: "POST" })
   .validator(z.object({ opportunityId: z.string() }))
   .handler(async ({ data }) => {
+    const { authorizeAction } = await import("./access.server");
+    await authorizeAction("user");
+
     const { aiBrief } = await import("./runtime.server");
     return aiBrief(data.opportunityId);
   });
@@ -174,6 +211,9 @@ export const requestBrief = createServerFn({ method: "POST" })
 export const simulateNow = createServerFn({ method: "POST" })
   .validator(z.object({ composition: compositionSchema }))
   .handler(async ({ data }) => {
+    const { authorizeAction } = await import("./access.server");
+    await authorizeAction("public");
+
     const { simulateComposition } = await import("./simulation");
     const { reviewComposition, canApprove } = await import("./security");
     const composition = data.composition as Composition;

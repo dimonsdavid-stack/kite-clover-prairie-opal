@@ -4,7 +4,7 @@ import { healthBand } from "./economics";
 import { factorsFromPool, scoreOpportunity } from "./scoring";
 import { reviewComposition, canApprove } from "./security";
 import { simulateComposition } from "./simulation";
-import { AGENT_SEQUENCE } from "./pipeline";
+
 import { buildX402Requirement } from "./x402";
 import type {
   AgentRun,
@@ -113,10 +113,12 @@ export async function getChainSnapshot(): Promise<ChainSnapshot> {
   let blockHex = "0x0";
   let rpcUsed = BASE.rpcs[0];
   try {
+    const chainId = Number.parseInt(String(await rpc("eth_chainId")), 16);
+    if (chainId !== 8453) throw new Error("RPC chain identity mismatch");
     blockHex = (await rpc("eth_blockNumber")) as string;
     rpcUsed = BASE.rpcs[0];
   } catch {
-    /* filled below */
+    throw new Error("Base RPC chain identity or latest block unavailable");
   }
 
   const codes = await Promise.all(
@@ -129,7 +131,7 @@ export async function getChainSnapshot(): Promise<ChainSnapshot> {
           address: c.address,
           source: c.source,
           hasCode: ok,
-          verification: ok ? ("VERIFIED" as const) : ("FAILED" as const),
+          verification: ok ? ("BLOCKED" as const) : ("FAILED" as const),
         } satisfies ContractCheck;
       } catch {
         return {
@@ -222,7 +224,8 @@ function opportunityFromPool(p: LlamaPool): Opportunity | null {
 function opportunityFromProtocol(p: LlamaProtocol): Opportunity | null {
   if (!p.slug || !p.name) return null;
   const tvl = p.chainTvls?.Base ?? p.chainTvls?.base ?? (typeof p.tvl === "number" ? p.tvl : null);
-  const vol = typeof p.change_1d === "number" && tvl ? Math.abs(p.change_1d / 100) * tvl : null;
+  // TVL change is not traded volume. The protocols endpoint does not measure it.
+  const vol = null;
   const factors = factorsFromPool({
     tvlUsd: tvl,
     apy: null,
@@ -561,9 +564,9 @@ export async function composeVenture(input: {
     primitiveVersions: versions,
     createdBy: input.createdBy,
   };
-  const status: VentureStatus = approved ? "CANARY" : "REJECTED";
+  const status: VentureStatus = approved ? "SECURITY_REVIEWED" : "REJECTED";
   const blocked = approved
-    ? "Mainnet bytecode publication BLOCKED: founder deployer key required. Lineage and canary registry are live."
+    ? "Offchain review complete. Deployment requires approved template, verified factory manifest, authorized transaction and receipt/bytecode/initialization checks."
     : "Open P0 findings. Venture rejected until invariants hold.";
 
   const sql = await getSql();
@@ -577,45 +580,24 @@ export async function composeVenture(input: {
       ${JSON.stringify(simulation)}::jsonb,
       ${JSON.stringify(security)}::jsonb,
       ${JSON.stringify(lineage)}::jsonb,
-      ${approved ? "canary" : "rejected"},
+      ${approved ? "deployment_unverified" : "rejected"},
       ${now}, ${now}
     )
   `;
 
-  let from: VentureStatus | null = null;
-  for (const step of AGENT_SEQUENCE) {
-    const to: VentureStatus =
-      step.to === "APPROVED" || step.to === "CANARY" ? (approved ? step.to : "REJECTED") : step.to;
-    await recordAgent({
-      agent: step.agent,
-      ventureId: id,
-      from,
-      to,
-      reason: step.reason,
-      evidence: {
-        archetype: input.archetype,
-        approved,
-        opportunityId: input.opportunityId,
-      },
-    });
-    from = to;
-    if (!approved && step.to === "SECURITY_REVIEWED") {
-      await recordAgent({
-        agent: "guardian",
-        ventureId: id,
-        from,
-        to: "REJECTED",
-        reason: "Open P0. Guardian denied live promotion.",
-        evidence: { findings: security.filter((f) => f.severity === "P0" && f.status === "open") },
-      });
-      break;
-    }
-  }
+  await recordAgent({
+    agent: "simulator", ventureId: id, from: "COMPOSED", to: "SIMULATED",
+    reason: "Deterministic five-scenario simulation executed.", evidence: { simulation },
+  });
+  await recordAgent({
+    agent: "sentinel", ventureId: id, from: "SIMULATED", to: status,
+    reason: "Static composition review executed. This is not a deployed contract audit.", evidence: { security, approved },
+  });
 
   await sql`
     insert into lineage_events (id, venture_id, kind, payload, created_at)
     values (
-      ${crypto.randomUUID()}, ${id}, ${approved ? "canary_registered" : "rejected"},
+      ${crypto.randomUUID()}, ${id}, ${approved ? "offchain_reviewed" : "rejected"},
       ${JSON.stringify({ composition, blocked, chainId: BASE.chainId })}::jsonb,
       ${now}
     )
@@ -632,14 +614,14 @@ export async function getHealth(): Promise<HealthReport> {
   let chain: ChainSnapshot | null = null;
   try {
     chain = await getChainSnapshot();
-    const verified = chain.contracts.filter((c) => c.verification === "VERIFIED").length;
+    const verified = chain.contracts.filter((c) => c.hasCode).length;
     const score = Math.round((verified / Math.max(chain.contracts.length, 1)) * 100);
     components.push({
       id: "chain",
       label: "Base RPC + bytecode",
       score,
       band: healthBand(score),
-      detail: `block ${chain.blockNumber} · ${verified}/${chain.contracts.length} verified`,
+      detail: `block ${chain.blockNumber} · ${verified}/${chain.contracts.length} code present; source/identity verification separate`,
     });
   } catch (err) {
     components.push({
@@ -734,10 +716,10 @@ export async function getHealth(): Promise<HealthReport> {
   const overall = Math.round(components.reduce((a, c) => a + c.score, 0) / components.length);
   const report: HealthReport = {
     overall,
-    band: healthBand(overall),
+    band: components.some(c => c.band === "CONTAIN") ? "CONTAIN" : components.some(c => c.band === "RESTRICTED") ? "RESTRICTED" : healthBand(overall),
     components,
     generatedAt: new Date().toISOString(),
-    chainId: chain?.chainId ?? BASE.chainId,
+    chainId: chain?.chainId ?? null,
     blockNumber: chain?.blockNumber ?? null,
   };
 
@@ -761,15 +743,17 @@ export async function runHealing(): Promise<{ actions: string[]; report: HealthR
   const actions: string[] = [];
   for (const c of report.components) {
     if (c.id === "chain" && c.score < 75) {
-      actions.push("Rotated to next public Base RPC (failover already in the client).");
+      const { rpcHealth, configuredRpcEndpoints } = await import("./operations/adapters");
+      const result = await rpcHealth(await getSql(), AbortSignal.timeout(15000), configuredRpcEndpoints(process.env));
+      actions.push(`RPC health action: ${JSON.stringify(result)}`);
     }
     if (c.id === "intel" && c.score < 75) {
       cacheSet("opps", undefined);
-      actions.push("Cleared intelligence cache and re-ingested.");
-      await ingestOpportunities();
+      const refreshed = await ingestOpportunities();
+      actions.push(refreshed.error ? "Cache invalidated; ingestion remains degraded." : `Cache invalidated; verified ${refreshed.items.length} ingested observations.`);
     }
     if (c.id === "factory" && c.score < 70) {
-      actions.push("Deposits remain paused at the policy layer. Withdrawals would stay open post-deploy.");
+      actions.push("Factory requires deployment verification; no onchain pause transaction was performed.");
     }
   }
   if (!actions.length) actions.push("No bounded repair required. System inside policy.");
@@ -831,7 +815,7 @@ export async function listRevenue(): Promise<RevenueEvent[]> {
     classification: RevenueEvent["classification"];
     attribution: string | null;
     created_at: string;
-  }>`select * from revenue_events order by created_at desc limit 40`;
+  }>`select * from revenue_events where economic_valid=true and confirmation_status='SETTLED' order by created_at desc limit 40`;
   return rows.map((r) => ({
     id: r.id,
     product: r.product,
@@ -889,22 +873,15 @@ export function commerceCatalog() {
 }
 
 export function x402Quote(skuId: string, origin: string) {
-  const payTo = process.env.ARCLENOS_TREASURY ?? null;
-  return buildX402Requirement({ skuId, payTo, resourceOrigin: origin });
+  const payTo = process.env.ARCLENOS_TREASURY_ADDRESS ?? null;
+  return buildX402Requirement({ skuId, payTo, resourceOrigin: process.env.ARCLENOS_PUBLIC_ORIGIN ?? origin });
 }
 
-export function x402SettleAttempt(skuId: string, paymentHeader: string | null, origin: string) {
+export function x402SettleAttempt(skuId: string, _paymentHeader: string | null, origin: string) {
   const quote = x402Quote(skuId, origin);
-  if (quote.blocked) {
-    return { status: "BLOCKED" as const, reason: quote.blocked, quote };
-  }
-  if (!paymentHeader) {
-    return { status: "PAYMENT_REQUIRED" as const, reason: "X-PAYMENT header missing.", quote };
-  }
   return {
     status: "BLOCKED" as const,
-    reason:
-      "Payment header received but no production x402 facilitator is configured. Settlement is not faked.",
+    reason: "Use the SKU HTTP endpoint with a validated request body and PAYMENT-SIGNATURE. The legacy server function cannot settle payments.",
     quote,
   };
 }

@@ -90,27 +90,27 @@ export function reviewComposition(composition: Composition): SecurityFinding[] {
     id: "initializer-guard",
     severity: "info",
     surface: "contract",
-    title: "Initializer race covered by factory path",
+    title: "Initializer protection requires deployment evidence",
     detail: "Clone then initialize in the same factory transaction. Reinitialization reverts.",
-    status: "mitigated",
+    status: "UNVERIFIED",
   });
 
   findings.push({
     id: "share-inflation",
     severity: "info",
     surface: "contract",
-    title: "Virtual offset on ERC-4626",
+    title: "Share inflation resistance requires contract tests",
     detail: "VIRTUAL_ASSETS=1 and VIRTUAL_SHARES=1000. Donation cannot steal the next depositor.",
-    status: "mitigated",
+    status: "UNVERIFIED",
   });
 
   findings.push({
     id: "agent-signer",
     severity: "info",
     surface: "agent",
-    title: "Agent wallets are default-deny",
+    title: "Agent signer restrictions require configuration evidence",
     detail: "Method, destination and daily caps. LLM cannot authorize treasury.unrestricted.",
-    status: "mitigated",
+    status: "UNVERIFIED",
   });
 
   return findings;
