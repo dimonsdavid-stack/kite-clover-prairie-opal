@@ -1,6 +1,6 @@
 import type { ScoreFactors } from "./types";
 
-/** Calibrated starting weights. Not scientific truth — updated from observed outcomes. */
+/** Uncalibrated initial heuristic weights. No historical outcome validation claimed. */
 export const SCORE_WEIGHTS = {
   demandVelocity: 1,
   monetization: 1,

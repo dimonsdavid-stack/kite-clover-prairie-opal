@@ -162,7 +162,7 @@ export type SecurityFinding = {
   surface: "contract" | "agent" | "infra" | "economic";
   title: string;
   detail: string;
-  status: "open" | "mitigated" | "accepted";
+  status: "open" | "mitigated" | "accepted" | "UNVERIFIED";
 };
 
 export type Venture = {
