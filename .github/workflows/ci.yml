@@ -36,12 +36,12 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - run: npm run verify:source
       - run: npm test
-      - run: npm run typecheck
-      - run: npm run lint
-      - name: Build (preview-only database fallback)
+      - name: Build and generate TanStack's route types (preview-only database fallback)
         env:
           ARCLENOS_LOCAL_PREVIEW: "true"
         run: npm run build
+      - run: npm run typecheck
+      - run: npm run lint
   contracts:
     runs-on: ubuntu-latest
     timeout-minutes: 30

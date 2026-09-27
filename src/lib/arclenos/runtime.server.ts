@@ -18,6 +18,8 @@ import type {
   RevenueEvent,
   Venture,
   VentureStatus,
+  JsonObject,
+  JsonValue,
 } from "./types";
 
 const g = globalThis as typeof globalThis & {
@@ -69,12 +71,12 @@ function hasRuntimeCode(code: unknown) {
   return typeof code === "string" && code !== "0x" && code.length > 4;
 }
 
-function asObj(v: unknown): Record<string, unknown> {
-  if (v && typeof v === "object" && !Array.isArray(v)) return v as Record<string, unknown>;
+function asObj(v: unknown): JsonObject {
+  if (v && typeof v === "object" && !Array.isArray(v)) return v as JsonObject;
   if (typeof v === "string") {
     try {
       const p = JSON.parse(v) as unknown;
-      if (p && typeof p === "object" && !Array.isArray(p)) return p as Record<string, unknown>;
+      if (p && typeof p === "object" && !Array.isArray(p)) return p as JsonObject;
     } catch {
       /* ignore */
     }
@@ -147,7 +149,7 @@ export async function getChainSnapshot(): Promise<ChainSnapshot> {
 
   let block: { hash?: string; timestamp?: string } | null = null;
   try {
-    block = (await rpc("eth_getBlockByNumber", [blockHex, false])) as typeof block;
+    block = (await rpc("eth_getBlockByNumber", [blockHex, false])) as { hash?: string; timestamp?: string } | null;
   } catch {
     block = null;
   }
@@ -768,10 +770,10 @@ export async function runHealing(): Promise<{ actions: string[]; report: HealthR
   return { actions, report: await getHealth() };
 }
 
-export async function runDailyAudit(): Promise<{ id: string; score: number; findings: unknown[] }> {
+export async function runDailyAudit(): Promise<{ id: string; score: number; findings: Array<{ severity: string; title: string; detail: string }> }> {
   const health = await getHealth();
   const ventures = await listVentures();
-  const findings: unknown[] = [];
+  const findings: Array<{ severity: string; title: string; detail: string }> = [];
   if (health.overall < 75) findings.push({ severity: "P1", title: "Control plane degraded", detail: health.band });
   const rejected = ventures.filter((v) => v.status === "REJECTED").length;
   if (rejected) findings.push({ severity: "info", title: "Rejected compositions", detail: `${rejected} held at sentinel.` });
@@ -799,7 +801,7 @@ export async function runDailyAudit(): Promise<{ id: string; score: number; find
 
 export async function listAudits() {
   const sql = await getSql();
-  return sql<{ id: string; scope: string; score: number | null; findings: unknown; created_at: string }>`
+  return sql<{ id: string; scope: string; score: number | null; findings: JsonValue; created_at: string }>`
     select * from audits order by created_at desc limit 12
   `;
 }
