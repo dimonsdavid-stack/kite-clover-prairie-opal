@@ -15,7 +15,7 @@ contract RevenueSplitter is ReentrancyGuard {
     mapping(address => uint256) public claimable;
     uint256 public totalReceived;
     uint256 public totalClaimed;
-    event RevenueReceived(address indexed payer, bytes32 indexed reference, uint256 amount);
+    event RevenueReceived(address indexed payer, bytes32 indexed paymentReference, uint256 amount);
     event Claimed(address indexed recipient, uint256 amount);
     constructor(IERC20 asset_, address[] memory recipients_, uint16[] memory weights_) {
         require(address(asset_).code.length > 0 && recipients_.length > 0 && recipients_.length <= 32 && recipients_.length == weights_.length, "invalid config");
@@ -23,7 +23,7 @@ contract RevenueSplitter is ReentrancyGuard {
         for (uint256 i; i < recipients_.length; ++i) { require(recipients_[i] != address(0) && weights_[i] > 0, "invalid recipient"); sum += weights_[i]; }
         require(sum == 10_000, "invalid allocation"); asset = asset_; recipients = recipients_; weights = weights_;
     }
-    function distribute(uint256 amount, bytes32 reference) external nonReentrant {
+    function distribute(uint256 amount, bytes32 paymentReference) external nonReentrant {
         require(amount > 0, "zero amount");
         uint256 balance = asset.balanceOf(address(this));
         asset.safeTransferFrom(msg.sender, address(this), amount);
@@ -33,7 +33,7 @@ contract RevenueSplitter is ReentrancyGuard {
             uint256 portion = Math.mulDiv(amount, weights[i], 10_000); allocated += portion; claimable[recipients[i]] += portion;
         }
         claimable[recipients[0]] += amount - allocated; totalReceived += amount;
-        emit RevenueReceived(msg.sender, reference, amount);
+        emit RevenueReceived(msg.sender, paymentReference, amount);
     }
     function claim() external nonReentrant {
         uint256 amount = claimable[msg.sender]; require(amount > 0, "nothing due");
@@ -59,9 +59,9 @@ contract FeeRouter is ReentrancyGuard {
         require(address(asset_).code.length > 0 && treasury_ != address(0) && address(attribution_).code.length > 0 && referralBps_ <= 2500, "invalid fees");
         asset = asset_; treasury = treasury_; attribution = attribution_; referralBps = referralBps_;
     }
-    function settle(bytes32 reference, uint256 amount) external nonReentrant returns (bytes32 receipt) {
-        require(amount > 0 && reference != bytes32(0), "invalid settlement");
-        receipt = keccak256(abi.encode(block.chainid, address(this), msg.sender, reference));
+    function settle(bytes32 paymentReference, uint256 amount) external nonReentrant returns (bytes32 receipt) {
+        require(amount > 0 && paymentReference != bytes32(0), "invalid settlement");
+        receipt = keccak256(abi.encode(block.chainid, address(this), msg.sender, paymentReference));
         require(!settled[receipt], "already settled"); settled[receipt] = true;
         uint256 balance = asset.balanceOf(address(this)); asset.safeTransferFrom(msg.sender, address(this), amount);
         require(asset.balanceOf(address(this)) - balance == amount, "unsupported token");
