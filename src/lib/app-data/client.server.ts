@@ -278,7 +278,9 @@ function tokenIdentityKey(token: string): string {
             .digest("base64url");
         }
       }
-    } catch {}
+    } catch {
+      // Non-JWT tokens use the digest of the full token.
+    }
   }
   return createHash("sha256").update(token).digest("base64url");
 }

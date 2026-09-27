@@ -1,5 +1,5 @@
 import { getSql } from "@/lib/db";
-import { AGENTS, ARCHETYPES, BASE, CAPITAL_POLICIES, COMMERCE_SKUS, PRIMITIVES, archetypeById } from "./catalog";
+import { AGENTS, BASE, CAPITAL_POLICIES, COMMERCE_SKUS, PRIMITIVES, archetypeById } from "./catalog";
 import { healthBand } from "./economics";
 import { factorsFromPool, scoreOpportunity } from "./scoring";
 import { reviewComposition, canApprove } from "./security";
@@ -677,13 +677,13 @@ export async function getHealth(): Promise<HealthReport> {
 
   const runs = await listAgentRuns(1);
   const lastRun = runs[0];
-  const agentScore = lastRun ? 88 : 70;
+  const agentScore = lastRun ? 60 : 35;
   components.push({
     id: "agents",
-    label: "Agent runtime",
+    label: "Agent event ledger",
     score: agentScore,
     band: healthBand(agentScore),
-    detail: lastRun ? `${lastRun.agent} · ${lastRun.to ?? "idle"}` : "no runs yet",
+    detail: lastRun ? `Last recorded event: ${lastRun.agent} · ${lastRun.to ?? "idle"}; execution requires separate worker evidence.` : "No agent events.",
   });
 
   const payTo = process.env.ARCLENOS_TREASURY ?? null;

@@ -7,7 +7,7 @@ import { Input, Label } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ARCHETYPES, PRIMITIVES, primitiveById } from "@/lib/arclenos/catalog";
 import { loadIntelligence, runCompose, simulateNow } from "@/lib/arclenos/fns";
-import { defaultDraft, useArclenos } from "@/lib/arclenos/store";
+import { useArclenos } from "@/lib/arclenos/store";
 import { usd, pct } from "@/lib/arclenos/format";
 import { assertFeeSplit } from "@/lib/arclenos/simulation";
 import type { Archetype, Composition, SimulationResult, SecurityFinding } from "@/lib/arclenos/types";
