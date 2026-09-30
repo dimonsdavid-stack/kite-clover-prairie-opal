@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { Shell, Panel, Stat } from "@/components/arclenos/shell";
 import { loadOperations } from "@/lib/arclenos/fns";
 
@@ -20,9 +20,9 @@ function Operations() {
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
           <Panel>
             <p className="text-sm text-muted-foreground">{data.reason}</p>
-            <Link to="/login" search={{ next: "/operations" }} className="mt-4 inline-flex h-11 items-center text-sm underline">
+            <a href="/login?next=%2Foperations" className="mt-4 inline-flex h-11 items-center text-sm underline">
               Sign in to Operations
-            </Link>
+            </a>
           </Panel>
         </div>
       </Shell>
