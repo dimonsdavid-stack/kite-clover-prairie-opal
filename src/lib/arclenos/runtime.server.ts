@@ -899,54 +899,6 @@ export function x402SettleAttempt(skuId: string, _paymentHeader: string | null, 
   };
 }
 
-export async function aiBrief(opportunityId: string): Promise<{ ok: true; text: string; model: string } | { ok: false; error: string }> {
-  const apiKey = process.env.XAI_API_KEY;
-  if (!apiKey) return { ok: false, error: "AI is not available in this environment." };
-  const opp = await getOpportunity(opportunityId);
-  if (!opp) return { ok: false, error: "Unknown opportunity." };
-  const res = await fetch("https://api.x.ai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: "grok-4.5",
-      max_tokens: 500,
-      messages: [
-        {
-          role: "system",
-          content:
-            "You are the ARCLENØS opportunity engine. Use only the supplied observed numbers. Never invent TVL, APY, volume, addresses, or partners. Recommend an archetype from: yield-vault, launch-controller, x402-commerce, liquidity-router, market-instrument, attribution-network. Be concise and institutional.",
-        },
-        {
-          role: "user",
-          content: JSON.stringify({
-            title: opp.title,
-            protocol: opp.protocol,
-            tvlUsd: opp.tvlUsd,
-            apy: opp.apy,
-            volumeUsd1d: opp.volumeUsd1d,
-            score: opp.score,
-            factors: opp.factors,
-            source: opp.source,
-          }),
-        },
-      ],
-    }),
-    signal: AbortSignal.timeout(20000),
-  });
-  if (!res.ok) return { ok: false, error: `xAI API error ${res.status}` };
-  const body = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-  const text = body.choices?.[0]?.message?.content ?? "";
-  const sql = await getSql();
-  await sql`
-    insert into briefs (id, body, model, created_at)
-    values (${crypto.randomUUID()}, ${text}, ${"grok-4.5"}, ${new Date().toISOString()})
-  `;
-  return { ok: true, text, model: "grok-4.5" };
-}
-
 export function capitalSnapshot() {
   const treasury = process.env.ARCLENOS_TREASURY ?? null;
   return {
