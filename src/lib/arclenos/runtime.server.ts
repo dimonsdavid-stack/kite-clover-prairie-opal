@@ -928,14 +928,12 @@ export async function operationsBundle() {
 }
 
 export async function homeBundle() {
-  const [health, chain, intel, ventures] = await Promise.all([
-    getHealth(),
+  const [chain, intel, ventures] = await Promise.all([
     getChainSnapshot().catch(() => null),
     ingestOpportunities(),
     listVentures(),
   ]);
   return {
-    health,
     chain,
     opportunities: intel.items.slice(0, 8),
     intelSource: intel.source,
