@@ -36,8 +36,7 @@ function Home() {
           Discover demand. Compose the business. Operate it on Base.
         </h1>
         <p className="mt-6 max-w-xl text-base leading-relaxed text-muted-foreground">
-          ARCLENØS finds real economic activity, builds revenue-producing products from a hardened primitive
-          library, and runs them with agent teams — under policy, with evidence, never on invented telemetry.
+          ARCLENØS identifies real economic activity, composes revenue-producing products from a hardened primitive\n          library, and operates them under explicit policy, capital limits, and verifiable execution evidence.
         </p>
         <div className="mt-8 flex flex-wrap gap-3">
           <Button asChild>
@@ -113,7 +112,7 @@ function Home() {
           <Panel>
             <p className="text-sm text-muted-foreground">
               No observed opportunities this fetch.
-              {data.intelError ? ` ${data.intelError}` : " Telemetry was empty — nothing was invented."}
+              {data.intelError ? ` ${data.intelError}` : " No qualifying observations were returned for this refresh."}
             </p>
           </Panel>
         ) : (
