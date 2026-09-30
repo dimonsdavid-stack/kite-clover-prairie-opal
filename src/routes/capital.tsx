@@ -17,7 +17,7 @@ function CapitalPage() {
     <Shell
       kicker="ARCLENØS Capital"
       title="ALLOW / DENY / CAP / PAUSE."
-      lede="Treasury actions are policy-gated, capped and approval-bound. Missing balances are NOT APPLICABLE, not zero."
+      lede="Treasury actions are policy-gated, capped and approval-bound. Balance data appears only after production treasury verification."
     >
       <div className="mx-auto max-w-7xl space-y-8 px-4 py-10 sm:px-6">
         <div className="grid gap-4 md:grid-cols-3">
