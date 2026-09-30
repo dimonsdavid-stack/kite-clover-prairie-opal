@@ -137,7 +137,7 @@ export const PRODUCTS: Array<{
     id: "guardstate",
     name: "GuardState",
     kicker: "Control plane",
-    lede: "Separate institutional finance control product. Not the factory.",
+    lede: "Institutional finance control plane for governed execution, policy enforcement and audit evidence.",
     href: "/guardstate",
   },
 ];
