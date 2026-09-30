@@ -331,7 +331,7 @@ function FactoryPage() {
               </Panel>
               {sec ? (
                 <Panel>
-                  <h2 className="font-serif text-xl">Sentinel findings</h2>
+                  <h2 className="font-serif text-xl">Security findings</h2>
                   <ul className="mt-4 space-y-3">
                     {sec.map((f) => (
                       <li key={f.id} className="border-t border-border pt-3">
