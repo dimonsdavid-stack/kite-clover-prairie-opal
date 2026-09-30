@@ -5,15 +5,287 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { loadCommerce } from "@/lib/arclenos/fns";
 import { usd } from "@/lib/arclenos/format";
-export const Route = createFileRoute("/commerce")({loader:()=>loadCommerce(),component:CommercePage});
-const composition={archetype:'x402-commerce',primitives:['factory','lineage-registry','x402-adapter'],feeBps:{protocol:2000,creator:3000,referrer:1000,builder:1000,treasury:3000},caps:{maxTvlUsd:25000,maxDepositUsd:2500,maxDailyOutflowUsd:1000},pauseGuards:true,circuitBreaker:true};
-function CommercePage(){
- const data=Route.useLoaderData();const[active,setActive]=useState<string>(data.skus[1]?.id??'sim.stress');const[body,setBody]=useState(JSON.stringify({composition},null,2));const[proof,setProof]=useState('');const[result,setResult]=useState('');const[busy,setBusy]=useState(false);const[status,setStatus]=useState<number|null>(null);
- const sku=data.skus.find(s=>s.id===active);
- function select(id:string){setActive(id);setProof('');setStatus(null);setResult('');setBody(JSON.stringify(id==='intel.brief'?{opportunityId:''}:{composition},null,2));}
- async function call(paid:boolean){if(!sku)return;setBusy(true);try{JSON.parse(body);const response=await fetch(sku.resource,{method:'POST',headers:{'content-type':'application/json',...(paid?{'PAYMENT-SIGNATURE':proof.trim()}:{})},body});setStatus(response.status);setResult(JSON.stringify({status:response.status,paymentRequired:response.headers.get('PAYMENT-REQUIRED'),paymentResponse:response.headers.get('PAYMENT-RESPONSE'),body:await response.json()},null,2));}catch(e){setResult(e instanceof Error?e.message:'Request failed');}finally{setBusy(false);}}
- return <Shell kicker="ARCLENØS Commerce" title="Buy a useful API response." lede="Base USDC payments for opportunity briefs, economic simulations and configuration reviews. Inspect the request and price, then submit a signed x402 authorization."><div className="mx-auto max-w-7xl space-y-8 px-4 py-10 sm:px-6">
- <div className="grid gap-4 md:grid-cols-3"><Panel><Stat label="Services" value={String(data.skus.length)} hint="x402 v2 · Base USDC"/></Panel><Panel><Stat label="Treasury recipient" value={data.treasurySet?'configured':'unset'} hint="Live payments require facilitator and chain verification"/></Panel><Panel><Stat label="Settled customer revenue" value={usd(data.revenue.reduce((a,r)=>a+r.amountUsd,0),2)} hint={`${data.revenue.length} verified economic events`}/></Panel></div>
- <div className="grid gap-6 lg:grid-cols-2"><div className="space-y-3">{data.skus.map(s=><Panel key={s.id}><div className="flex items-start justify-between gap-3"><div className="min-w-0"><h2 className="font-serif text-lg">{s.name}</h2><p className="mt-1 text-sm text-muted-foreground">{s.description}</p><p className="tape mt-2 break-all text-xs text-muted-foreground">POST {s.resource}</p></div><Badge tone={s.id===active?'ok':'idle'}>${s.usdc} USDC</Badge></div><Button className="mt-4 min-h-11" type="button" variant="secondary" disabled={busy} onClick={()=>select(s.id)}>Inspect {s.name.toLowerCase()}</Button></Panel>)}<Panel><p className="text-sm text-muted-foreground">The API returns 503 while commerce is uncommissioned. A 402 response contains the live payment requirements. A successful paid response includes the purchased result and a persistent receipt. Internal transfers are excluded from customer revenue.</p><a className="mt-3 inline-block underline" href="/developers">Developer integration</a></Panel></div>
- <Panel><h2 className="font-serif text-xl">{sku?.name} request</h2><label className="mt-4 block text-sm" htmlFor="commerce-body">Request JSON</label><textarea id="commerce-body" className="mt-2 min-h-64 w-full rounded-md border border-border bg-background p-3 font-mono text-xs" value={body} onChange={e=>{setBody(e.target.value);setProof('');}} disabled={busy}/><Button className="mt-3 min-h-11" disabled={busy} onClick={()=>void call(false)}>{busy?'Requesting…':'Request payment requirements'}</Button><label className="mt-6 block text-sm" htmlFor="commerce-proof">Signed PAYMENT-SIGNATURE</label><p className="mt-1 text-xs text-muted-foreground">Use an x402-compatible client to sign the returned requirement. This authorization can transfer the displayed USDC amount. Never paste a private key or seed phrase.</p><textarea id="commerce-proof" className="mt-2 min-h-24 w-full rounded-md border border-border bg-background p-3 font-mono text-xs" value={proof} onChange={e=>setProof(e.target.value)} placeholder="Base64-encoded x402 v2 payment payload" autoComplete="off" disabled={busy}/><Button className="mt-3 min-h-11" disabled={busy||!proof.trim()} onClick={()=>void call(true)}>Submit authorization · ${sku?.usdc} USDC</Button><div className="mt-6" role="status" aria-live="polite"><h3 className="text-sm font-medium">{status?`HTTP ${status}`:'Response'}</h3><pre className="mt-2 max-h-96 overflow-auto whitespace-pre-wrap break-all text-xs leading-relaxed text-muted-foreground">{result||'Select a service and request its payment requirements.'}</pre></div></Panel></div></div></Shell>;
+import { useArclenos } from "@/lib/arclenos/store";
+import {
+  connectWallet,
+  decodePaymentRequiredHeader,
+  selectBaseUsdcRequirement,
+  signX402Requirement,
+  usdcAtomic,
+} from "@/lib/arclenos/wallet";
+import { BASE } from "@/lib/arclenos/catalog";
+
+export const Route = createFileRoute("/commerce")({
+  loader: () => loadCommerce(),
+  component: CommercePage,
+});
+
+const composition = {
+  archetype: "x402-commerce",
+  primitives: ["factory", "lineage-registry", "x402-adapter"],
+  feeBps: { protocol: 2000, creator: 3000, referrer: 1000, builder: 1000, treasury: 3000 },
+  caps: { maxTvlUsd: 25000, maxDepositUsd: 2500, maxDailyOutflowUsd: 1000 },
+  pauseGuards: true,
+  circuitBreaker: true,
+};
+
+async function responseBody(response: Response) {
+  try {
+    return await response.json();
+  } catch {
+    return { error: "INVALID_SERVER_RESPONSE" };
+  }
+}
+
+function CommercePage() {
+  const data = Route.useLoaderData();
+  const address = useArclenos((s) => s.address);
+  const chainId = useArclenos((s) => s.chainId);
+  const setWallet = useArclenos((s) => s.setWallet);
+  const [active, setActive] = useState<string>(data.skus[1]?.id ?? "sim.stress");
+  const [body, setBody] = useState(JSON.stringify({ composition }, null, 2));
+  const [result, setResult] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState<number | null>(null);
+  const sku = data.skus.find((s) => s.id === active);
+
+  function select(id: string) {
+    setActive(id);
+    setStatus(null);
+    setResult("");
+    setBody(JSON.stringify(id === "intel.brief" ? { opportunityId: "" } : { composition }, null, 2));
+  }
+
+  function parseRequestBody() {
+    try {
+      return JSON.parse(body) as unknown;
+    } catch {
+      throw new Error("Request JSON is invalid.");
+    }
+  }
+
+  async function requestRequirements() {
+    if (!sku) return;
+    setBusy(true);
+    setStatus(null);
+    try {
+      const requestBody = parseRequestBody();
+      const response = await fetch(sku.resource, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(requestBody),
+      });
+      const responseJson = await responseBody(response);
+      setStatus(response.status);
+      setResult(JSON.stringify({
+        status: response.status,
+        paymentRequired: response.headers.get("PAYMENT-REQUIRED"),
+        body: responseJson,
+      }, null, 2));
+    } catch (error) {
+      setResult(error instanceof Error ? error.message : "Request failed.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function ensureWallet() {
+    let currentAddress = address;
+    if (!currentAddress) {
+      const connected = await connectWallet();
+      currentAddress = connected.address;
+      setWallet(connected.address, connected.chainId);
+    }
+    return currentAddress;
+  }
+
+  async function payAndRun() {
+    if (!sku) return;
+    setBusy(true);
+    setStatus(null);
+    try {
+      const requestBody = parseRequestBody();
+      const payer = await ensureWallet();
+
+      const challengeResponse = await fetch(sku.resource, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(requestBody),
+      });
+      const challengeBody = await responseBody(challengeResponse);
+      setStatus(challengeResponse.status);
+
+      if (challengeResponse.status !== 402) {
+        setResult(JSON.stringify({
+          status: challengeResponse.status,
+          body: challengeBody,
+          note: challengeResponse.status === 503
+            ? "Commerce is not commissioned yet; no wallet authorization was signed and no payment was submitted."
+            : "The server did not request payment.",
+        }, null, 2));
+        return;
+      }
+
+      const paymentRequired = challengeResponse.headers.get("PAYMENT-REQUIRED");
+      if (!paymentRequired) {
+        throw new Error("Payment-required response is missing the x402 challenge header.");
+      }
+
+      const challenge = decodePaymentRequiredHeader(paymentRequired);
+      const requirement = selectBaseUsdcRequirement(challenge, usdcAtomic(sku.usdc));
+      setResult(JSON.stringify({
+        status: 402,
+        stage: "AWAITING_WALLET_SIGNATURE",
+        network: requirement.network,
+        asset: "Base USDC",
+        amount: sku.usdc,
+        payTo: requirement.payTo,
+        expiresWithinSeconds: Math.min(requirement.maxTimeoutSeconds, 300),
+      }, null, 2));
+
+      const paymentSignature = await signX402Requirement(challenge, requirement, payer);
+      const paidResponse = await fetch(sku.resource, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "PAYMENT-SIGNATURE": paymentSignature,
+        },
+        body: JSON.stringify(requestBody),
+      });
+      const paidBody = await responseBody(paidResponse);
+      setStatus(paidResponse.status);
+      setResult(JSON.stringify({
+        status: paidResponse.status,
+        paymentResponse: paidResponse.headers.get("PAYMENT-RESPONSE"),
+        body: paidBody,
+        note: paidResponse.status === 200
+          ? "Payment settled and the purchased result was returned."
+          : paidResponse.status === 409 || paidResponse.status === 503
+            ? "Do not sign a second payment for the same request while reconciliation is pending."
+            : undefined,
+      }, null, 2));
+    } catch (error) {
+      setResult(error instanceof Error ? error.message : "Payment request failed.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Shell
+      kicker="ARCLENØS Commerce"
+      title="Buy a useful API response."
+      lede="Base USDC payments for opportunity briefs, economic simulations and configuration reviews. The wallet signs an exact, short-lived x402 authorization; ARCLENØS settles only the displayed amount."
+    >
+      <div className="mx-auto max-w-7xl space-y-8 px-4 py-10 sm:px-6">
+        <div className="grid gap-4 md:grid-cols-3">
+          <Panel>
+            <Stat label="Services" value={String(data.skus.length)} hint="x402 v2 · Base USDC" />
+          </Panel>
+          <Panel>
+            <Stat
+              label="Treasury recipient"
+              value={data.treasurySet ? "configured" : "unset"}
+              hint="Live payments require facilitator and chain verification"
+            />
+          </Panel>
+          <Panel>
+            <Stat
+              label="Settled customer revenue"
+              value={usd(data.revenue.reduce((a, r) => a + r.amountUsd, 0), 2)}
+              hint={String(data.revenue.length) + " verified economic events"}
+            />
+          </Panel>
+        </div>
+
+        <div className="grid gap-6 lg:grid-cols-2">
+          <div className="space-y-3">
+            {data.skus.map((s) => (
+              <Panel key={s.id}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h2 className="font-serif text-lg">{s.name}</h2>
+                    <p className="mt-1 text-sm text-muted-foreground">{s.description}</p>
+                    <p className="tape mt-2 break-all text-xs text-muted-foreground">
+                      POST {s.resource}
+                    </p>
+                  </div>
+                  <Badge tone={s.id === active ? "ok" : "idle"}>
+                    {s.usdc} USDC
+                  </Badge>
+                </div>
+                <Button
+                  className="mt-4 min-h-11"
+                  type="button"
+                  variant="secondary"
+                  disabled={busy}
+                  onClick={() => select(s.id)}
+                >
+                  Select {s.name.toLowerCase()}
+                </Button>
+              </Panel>
+            ))}
+            <Panel>
+              <p className="text-sm text-muted-foreground">
+                Wallet checkout uses EIP-3009 TransferWithAuthorization on native Base USDC. It signs only the exact displayed amount and a one-time nonce; it does not grant an unlimited token allowance. Internal transfers are excluded from customer revenue.
+              </p>
+              <a className="mt-3 inline-block underline" href="/developers">
+                Developer integration
+              </a>
+            </Panel>
+          </div>
+
+          <Panel>
+            <h2 className="font-serif text-xl">{sku?.name} request</h2>
+            <label className="mt-4 block text-sm" htmlFor="commerce-body">
+              Request JSON
+            </label>
+            <textarea
+              id="commerce-body"
+              className="mt-2 min-h-64 w-full rounded-md border border-border bg-background p-3 font-mono text-xs"
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              disabled={busy}
+            />
+
+            <div className="mt-4 flex flex-wrap gap-3">
+              <Button
+                disabled={busy}
+                variant="secondary"
+                onClick={() => void requestRequirements()}
+              >
+                {busy ? "Working..." : "Inspect payment requirement"}
+              </Button>
+              <Button disabled={busy || !sku} onClick={() => void payAndRun()}>
+                {busy
+                  ? "Working..."
+                  : "Pay with wallet · $" + (sku?.usdc ?? "-") + " USDC"}
+              </Button>
+            </div>
+
+            <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+              {address
+                ? "Wallet " +
+                  address.slice(0, 6) +
+                  "..." +
+                  address.slice(-4) +
+                  " · " +
+                  (chainId === BASE.chainId ? "Base" : "network switch required")
+                : "Connect a Base-capable browser wallet when prompted. Never enter a private key or seed phrase."}
+            </p>
+
+            <div className="mt-6" role="status" aria-live="polite">
+              <h3 className="text-sm font-medium">
+                {status ? "HTTP " + status : "Response"}
+              </h3>
+              <pre className="mt-2 max-h-96 overflow-auto whitespace-pre-wrap break-all text-xs leading-relaxed text-muted-foreground">
+                {result ||
+                  "Select a service. Inspect the requirement or pay directly with your wallet."}
+              </pre>
+            </div>
+          </Panel>
+        </div>
+      </div>
+    </Shell>
+  );
 }
