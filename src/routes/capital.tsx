@@ -17,7 +17,7 @@ function CapitalPage() {
     <Shell
       kicker="ARCLENØS Capital"
       title="ALLOW / DENY / CAP / PAUSE."
-      lede="A general-purpose LLM has no unrestricted treasury authority. Missing balances are NOT APPLICABLE, not zero."
+      lede="Treasury actions are policy-gated, capped and approval-bound. Missing balances are NOT APPLICABLE, not zero."
     >
       <div className="mx-auto max-w-7xl space-y-8 px-4 py-10 sm:px-6">
         <div className="grid gap-4 md:grid-cols-3">
@@ -47,12 +47,12 @@ function CapitalPage() {
           </ul>
         </Panel>
         <Panel>
-          <h2 className="font-serif text-xl">Agent authority</h2>
+          <h2 className="font-serif text-xl">Execution authority</h2>
           <div className="mt-4 overflow-x-auto">
             <table className="w-full min-w-[560px] text-left text-sm">
               <thead className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
                 <tr>
-                  <th className="py-2 font-medium">Agent</th>
+                  <th className="py-2 font-medium">Control</th>
                   <th className="py-2 font-medium">Mandate</th>
                   <th className="py-2 font-medium">Authority</th>
                 </tr>
