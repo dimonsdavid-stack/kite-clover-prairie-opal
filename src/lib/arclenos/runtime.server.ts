@@ -1,5 +1,5 @@
 import { getSql } from "@/lib/db";
-import { AGENTS, ARCHETYPES, BASE, CAPITAL_POLICIES, COMMERCE_SKUS, PRIMITIVES, archetypeById } from "./catalog";
+import { AGENTS, BASE, CAPITAL_POLICIES, COMMERCE_SKUS, PRIMITIVES, archetypeById } from "./catalog";
 import { healthBand } from "./economics";
 import { factorsFromPool, scoreOpportunity } from "./scoring";
 import { reviewComposition, canApprove } from "./security";
@@ -18,6 +18,8 @@ import type {
   RevenueEvent,
   Venture,
   VentureStatus,
+  JsonObject,
+  JsonValue,
 } from "./types";
 
 const g = globalThis as typeof globalThis & {
@@ -69,12 +71,12 @@ function hasRuntimeCode(code: unknown) {
   return typeof code === "string" && code !== "0x" && code.length > 4;
 }
 
-function asObj(v: unknown): Record<string, unknown> {
-  if (v && typeof v === "object" && !Array.isArray(v)) return v as Record<string, unknown>;
+function asObj(v: unknown): JsonObject {
+  if (v && typeof v === "object" && !Array.isArray(v)) return v as JsonObject;
   if (typeof v === "string") {
     try {
       const p = JSON.parse(v) as unknown;
-      if (p && typeof p === "object" && !Array.isArray(p)) return p as Record<string, unknown>;
+      if (p && typeof p === "object" && !Array.isArray(p)) return p as JsonObject;
     } catch {
       /* ignore */
     }
@@ -147,7 +149,7 @@ export async function getChainSnapshot(): Promise<ChainSnapshot> {
 
   let block: { hash?: string; timestamp?: string } | null = null;
   try {
-    block = (await rpc("eth_getBlockByNumber", [blockHex, false])) as typeof block;
+    block = (await rpc("eth_getBlockByNumber", [blockHex, false])) as { hash?: string; timestamp?: string } | null;
   } catch {
     block = null;
   }
@@ -675,35 +677,46 @@ export async function getHealth(): Promise<HealthReport> {
 
   const runs = await listAgentRuns(1);
   const lastRun = runs[0];
-  const agentScore = lastRun ? 88 : 70;
+  const agentScore = lastRun ? 60 : 35;
   components.push({
     id: "agents",
-    label: "Agent runtime",
+    label: "Agent event ledger",
     score: agentScore,
     band: healthBand(agentScore),
-    detail: lastRun ? `${lastRun.agent} · ${lastRun.to ?? "idle"}` : "no runs yet",
+    detail: lastRun ? `Last recorded event: ${lastRun.agent} · ${lastRun.to ?? "idle"}; execution requires separate worker evidence.` : "No agent events.",
   });
 
-  const payTo = process.env.ARCLENOS_TREASURY ?? null;
-  components.push({
-    id: "payments",
-    label: "x402 settlement",
-    score: payTo ? 80 : 62,
-    band: payTo ? "DEGRADED" : "RESTRICTED",
-    detail: payTo
-      ? "Treasury payTo configured. Facilitator still required for settlement."
-      : "Quotes live. Settlement BLOCKED until founder sets treasury payTo.",
-  });
+  const commerceConfigured = Boolean(
+    process.env.DATABASE_URL && process.env.ARCLENOS_TREASURY_ADDRESS &&
+    process.env.X402_FACILITATOR_URL && process.env.BASE_RPC_URL &&
+    process.env.ARCLENOS_PUBLIC_ORIGIN && process.env.ARCLENOS_INTERNAL_PAYER_ADDRESSES
+  );
+  try {
+    const sql = await getSql();
+    const rows = await sql<{ n: number }>`select count(*)::integer as n from revenue_events where classification = 'x402' and confirmation_status = 'SETTLED' and economic_valid = true`;
+    const settled = rows[0]?.n ?? 0;
+    components.push({
+      id: 'payments', label: 'x402 settlement',
+      score: settled > 0 ? 93 : commerceConfigured ? 55 : 20,
+      band: settled > 0 ? 'HEALTHY' : 'RESTRICTED',
+      detail: settled > 0 ? String(settled) + ' recorded economically valid customer settlements; inspect receipts for transaction evidence.' : commerceConfigured ? 'Configured but no settled customer payment verified.' : 'Payment infrastructure not commissioned.',
+    });
+  } catch {
+    components.push({ id: 'payments', label: 'x402 settlement', score: 20, band: 'RESTRICTED', detail: 'Settlement evidence unavailable.' });
+  }
 
-  const factoryDeployed = false;
-  components.push({
-    id: "factory",
-    label: "Factory on-chain",
-    score: factoryDeployed ? 92 : 58,
-    band: factoryDeployed ? "HEALTHY" : "RESTRICTED",
-    detail: "Canary registry live. Base bytecode publication requires deployer authorization.",
-  });
-
+  try {
+    const { getFactoryHealth } = await import('./deployment/chain');
+    const factory = await getFactoryHealth(await getSql());
+    components.push({
+      id: 'factory', label: 'Factory on-chain',
+      score: factory.verified && factory.operational ? 93 : factory.verified ? 58 : 20,
+      band: factory.verified && factory.operational ? 'HEALTHY' : 'RESTRICTED',
+      detail: factory.verified ? (factory.operational ? 'Configured bytecode hash verified; emergency pause clear.' : 'Verified factory is paused.') : (factory.reason ?? 'Factory not independently verified.'),
+    });
+  } catch {
+    components.push({ id: 'factory', label: 'Factory on-chain', score: 20, band: 'RESTRICTED', detail: 'Factory deployment evidence unavailable.' });
+  }
   const latency = Date.now() - started;
   components.push({
     id: "api",
@@ -768,17 +781,17 @@ export async function runHealing(): Promise<{ actions: string[]; report: HealthR
   return { actions, report: await getHealth() };
 }
 
-export async function runDailyAudit(): Promise<{ id: string; score: number; findings: unknown[] }> {
+export async function runDailyAudit(): Promise<{ id: string; score: number; findings: Array<{ severity: string; title: string; detail: string }> }> {
   const health = await getHealth();
   const ventures = await listVentures();
-  const findings: unknown[] = [];
+  const findings: Array<{ severity: string; title: string; detail: string }> = [];
   if (health.overall < 75) findings.push({ severity: "P1", title: "Control plane degraded", detail: health.band });
   const rejected = ventures.filter((v) => v.status === "REJECTED").length;
   if (rejected) findings.push({ severity: "info", title: "Rejected compositions", detail: `${rejected} held at sentinel.` });
   findings.push({
     severity: "info",
     title: "Mainnet factory",
-    detail: "Bytecode publication still requires founder deployer. Canary registry is the live path.",
+    detail: health.components.find(c => c.id === "factory")?.detail ?? "Factory deployment unverified.",
   });
   const id = crypto.randomUUID();
   const sql = await getSql();
@@ -799,7 +812,7 @@ export async function runDailyAudit(): Promise<{ id: string; score: number; find
 
 export async function listAudits() {
   const sql = await getSql();
-  return sql<{ id: string; scope: string; score: number | null; findings: unknown; created_at: string }>`
+  return sql<{ id: string; scope: string; score: number | null; findings: JsonValue; created_at: string }>`
     select * from audits order by created_at desc limit 12
   `;
 }

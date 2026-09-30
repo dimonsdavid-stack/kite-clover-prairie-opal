@@ -1,3 +1,7 @@
+/** Values returned to TanStack server functions must be JSON-serializable. */
+export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+export type JsonObject = { [key: string]: JsonValue };
+
 export const CHAIN_ID_BASE = 8453;
 export const CHAIN_NAME = "Base";
 
@@ -171,7 +175,7 @@ export type Venture = {
   archetype: Archetype;
   status: VentureStatus;
   opportunityId: string | null;
-  config: Record<string, unknown>;
+  config: JsonObject;
   composition: Composition | null;
   simulation: SimulationResult[] | null;
   security: SecurityFinding[] | null;
@@ -192,7 +196,7 @@ export type AgentRun = {
   from: VentureStatus | null;
   to: VentureStatus | null;
   reason: string;
-  evidence: Record<string, unknown>;
+  evidence: JsonObject;
   createdAt: string;
 };
 
