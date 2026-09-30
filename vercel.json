@@ -1,4 +1,11 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "installCommand": "npm install --no-audit --no-fund",
-  "buildCommand": "npm run db:migrate && npm run build"
+  "buildCommand": "npm run db:migrate && npm run build",
+  "crons": [
+    {
+      "path": "/api/ops/tick",
+      "schedule": "*/15 * * * *"
+    }
+  ]
 }
