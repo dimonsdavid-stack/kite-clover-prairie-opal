@@ -48,8 +48,8 @@ function LaunchPage() {
   return (
     <Shell
       kicker="ARCLENØS Launch"
-      title="Adaptive graduation. No 42 ETH doctrine."
-      lede="Capital formation graduates when users, organic flow, depth and integrity clear gates — not when a single reserve threshold is hit."
+      title="Evidence-driven graduation."
+      lede="Capital formation advances when user activity, organic flow, market depth and integrity clear explicit graduation gates."
     >
       <div className="mx-auto max-w-7xl space-y-8 px-4 py-10 sm:px-6">
         <div className="grid gap-4 md:grid-cols-3">
