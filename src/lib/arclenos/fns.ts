@@ -121,6 +121,14 @@ export const loadCommerce = createServerFn({ method: "GET" }).handler(async () =
     quotes: commerceCatalog().map((s) => ({ id: s.id, ...x402Quote(s.id, origin) })),
     revenue: await listRevenue(),
     treasurySet: Boolean(process.env.ARCLENOS_TREASURY_ADDRESS),
+    commerceConfigured: Boolean(
+      process.env.DATABASE_URL &&
+      process.env.ARCLENOS_TREASURY_ADDRESS &&
+      process.env.X402_FACILITATOR_URL &&
+      process.env.BASE_RPC_URL &&
+      process.env.ARCLENOS_PUBLIC_ORIGIN &&
+      process.env.ARCLENOS_INTERNAL_PAYER_ADDRESSES
+    ),
   };
 });
 
@@ -202,16 +210,6 @@ export const trackReferral = createServerFn({ method: "POST" })
 
     const { clickReferral } = await import("./runtime.server");
     return clickReferral(data.code);
-  });
-
-export const requestBrief = createServerFn({ method: "POST" })
-  .validator(z.object({ opportunityId: z.string() }))
-  .handler(async ({ data }) => {
-    const { authorizeAction } = await import("./access.server");
-    await authorizeAction("user");
-
-    const { aiBrief } = await import("./runtime.server");
-    return aiBrief(data.opportunityId);
   });
 
 export const simulateNow = createServerFn({ method: "POST" })
