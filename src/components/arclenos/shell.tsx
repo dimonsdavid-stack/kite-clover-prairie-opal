@@ -143,9 +143,6 @@ export function Shell({
             <Link to="/docs" className="inline-flex h-9 items-center hover:text-foreground">
               Docs
             </Link>
-            <Link to="/guardstate" className="inline-flex h-9 items-center hover:text-foreground">
-              GuardState
-            </Link>
           </div>
         </div>
       </footer>
