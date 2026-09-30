@@ -73,6 +73,13 @@ await check("/intelligence", (r, b) =>
   !/Request Grok|Grok brief|grok\.com|\/__grok\//i.test(b)
 );
 
+await check("/liquidity", (r, b) =>
+  r.status === 200 &&
+  /Runtime bytecode/i.test(b) &&
+  /CODE PRESENT|NO CODE/i.test(b) &&
+  !/Verified venues|Catalog bytecode/i.test(b)
+);
+
 await check("/__grok/manifest.webmanifest", (r, b) =>
   r.status === 404 && !/Grok App|grok\.com/i.test(b)
 );
