@@ -17,7 +17,7 @@ function AtlasPage() {
     <Shell
       kicker="ARCLENØS Atlas"
       title="Provenance, not marketing."
-      lede="Every composition leaves lineage, agent runs and a risk status. Mainnet addresses appear only after a real deploy."
+      lede="Every composition leaves lineage, execution records and a risk status. Mainnet addresses appear only after a verified deployment."
     >
       <div className="mx-auto max-w-7xl space-y-8 px-4 py-10 sm:px-6">
         <div className="grid gap-4 md:grid-cols-3">
@@ -25,7 +25,7 @@ function AtlasPage() {
             <Stat label="Ventures" value={String(data.ventures.length)} />
           </Panel>
           <Panel>
-            <Stat label="Agent runs" value={String(data.runs.length)} />
+            <Stat label="Execution records" value={String(data.runs.length)} />
           </Panel>
           <Panel>
             <Stat label="Base block" value={data.chain ? String(data.chain.blockNumber) : "—"} />
@@ -64,13 +64,13 @@ function AtlasPage() {
           </table>
           {data.ventures.length === 0 ? (
             <p className="px-4 py-8 text-sm text-muted-foreground">
-              Atlas is empty until Factory registers a canary. No sample ventures are injected.
+              Atlas is empty until Factory registers a canary.
             </p>
           ) : null}
         </div>
 
         <Panel>
-          <h2 className="font-serif text-xl">Recent agent evidence</h2>
+          <h2 className="font-serif text-xl">Recent execution evidence</h2>
           <ul className="mt-4 space-y-3">
             {data.runs.slice(0, 12).map((r) => (
               <li key={r.id} className="border-t border-border pt-3 text-sm">
