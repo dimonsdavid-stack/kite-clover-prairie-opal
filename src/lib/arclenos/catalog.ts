@@ -102,7 +102,7 @@ export const PRODUCTS: Array<{
     id: "liquidity",
     name: "Liquidity",
     kicker: "Route",
-    lede: "Verified Aerodrome and Base venues. Addresses checked against live bytecode.",
+    lede: "Base venues with live runtime-code checks and observed pair data.",
     href: "/liquidity",
   },
   {
