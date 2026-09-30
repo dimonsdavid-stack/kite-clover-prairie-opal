@@ -8,7 +8,7 @@ export const Route = createFileRoute("/developers")({
 
 const ENDPOINTS = [
   { method: "GET", path: "/api/health", note: "Component health scores, chain id, block." },
-  { method: "GET", path: "/api/v1/opportunities", note: "Scored Base opportunities. Never fabricated." },
+  { method: "GET", path: "/api/v1/opportunities", note: "Observed Base opportunities with factor scores." },
   { method: "GET", path: "/api/v1/atlas", note: "Ventures, lineage summary, statuses." },
   { method: "GET", path: "/api/v1/pricing", note: "Machine-readable SKU list." },
   { method: "POST", path: "/api/v1/intelligence/opportunity", note: "x402. 402 unless treasury + payment." },
@@ -22,7 +22,7 @@ function DevelopersPage() {
     <Shell
       kicker="ARCLENØS API"
       title="Idempotent, priced, receipted."
-      lede="Read pricing, honor exact 402 requirements, and reuse the same payment proof while reconciliation is pending."
+      lede="Machine-readable pricing, exact payment requirements, idempotent retries and verifiable receipts."
     >
       <div className="mx-auto max-w-7xl space-y-8 px-4 py-10 sm:px-6">
         <Panel>
