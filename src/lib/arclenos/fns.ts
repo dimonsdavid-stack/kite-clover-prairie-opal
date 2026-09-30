@@ -40,6 +40,21 @@ export const loadIntelligence = createServerFn({ method: "GET" }).handler(async 
   return { ...intel, chain };
 });
 
+export const loadFactory = createServerFn({ method: "GET" }).handler(async () => {
+  const { ingestOpportunities } = await import("./runtime.server");
+  const intel = await ingestOpportunities();
+  let canOperate = false;
+  try {
+    const { authorizeAction } = await import("./access.server");
+    await authorizeAction("operator");
+    canOperate = true;
+  } catch (error) {
+    const { AccessError } = await import("./access-policy");
+    if (!(error instanceof AccessError && (error.status === 401 || error.status === 403))) throw error;
+  }
+  return { ...intel, canOperate };
+});
+
 export const refreshIntelligence = createServerFn({ method: "POST" }).handler(async () => {
     const { authorizeAction } = await import("./access.server");
     await authorizeAction("operator");
