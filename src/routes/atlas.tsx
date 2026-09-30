@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { loadAtlas } from "@/lib/arclenos/fns";
 import { timeAgo } from "@/lib/arclenos/format";
 import { statusTone } from "@/lib/arclenos/pipeline";
+import { AGENTS } from "@/lib/arclenos/catalog";
 
 export const Route = createFileRoute("/atlas")({
   loader: () => loadAtlas(),
@@ -75,14 +76,14 @@ function AtlasPage() {
             {data.runs.slice(0, 12).map((r) => (
               <li key={r.id} className="border-t border-border pt-3 text-sm">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span>{r.agent}</span>
+                  <span>{AGENTS.find((control) => control.id === r.agent)?.name ?? "Execution control"}</span>
                   {r.to ? <Badge tone="idle">{r.to}</Badge> : null}
                   <span className="tape text-xs text-muted-foreground">{timeAgo(r.createdAt)}</span>
                 </div>
                 <p className="mt-1 text-muted-foreground">{r.reason}</p>
               </li>
             ))}
-            {data.runs.length === 0 ? <li className="text-sm text-muted-foreground">No runs yet.</li> : null}
+            {data.runs.length === 0 ? <li className="text-sm text-muted-foreground">No execution records yet.</li> : null}
           </ul>
         </Panel>
       </div>
