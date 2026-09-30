@@ -1,10 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { toast } from "sonner";
 import { Shell, Panel, Stat } from "@/components/arclenos/shell";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { loadIntelligence, refreshIntelligence, requestBrief } from "@/lib/arclenos/fns";
+import { loadIntelligence } from "@/lib/arclenos/fns";
 import { useArclenos } from "@/lib/arclenos/store";
 import { compactUsd, pct, timeAgo } from "@/lib/arclenos/format";
 import { bandForScore } from "@/lib/arclenos/scoring";
@@ -17,58 +16,20 @@ export const Route = createFileRoute("/intelligence")({
 
 function IntelligencePage() {
   const initial = Route.useLoaderData();
-  const [items, setItems] = useState(initial.items);
-  const [source, setSource] = useState(initial.source);
-  const [error, setError] = useState(initial.error);
-  const [busy, setBusy] = useState(false);
-  const [brief, setBrief] = useState<string | null>(null);
-  const [briefErr, setBriefErr] = useState<string | null>(null);
+  const items = initial.items;
   const [selected, setSelected] = useState<Opportunity | null>(items[0] ?? null);
   const setDraft = useArclenos((s) => s.setDraft);
-
-  async function refresh() {
-    setBusy(true);
-    try {
-      const res = await refreshIntelligence();
-      setItems(res.items);
-      setSource(res.source);
-      setError(res.error);
-      setSelected(res.items[0] ?? null);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Refresh failed");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function briefSel() {
-    if (!selected) return;
-    setBusy(true);
-    setBriefErr(null);
-    try {
-      const res = await requestBrief({ data: { opportunityId: selected.id } });
-      if (res.ok) setBrief(res.text);
-      else setBriefErr(res.error);
-    } finally {
-      setBusy(false);
-    }
-  }
 
   return (
     <Shell
       kicker="ARCLENØS Intelligence"
       title="Observed demand on Base"
-      lede="Scores are calibrated starting weights, not scientific truth. Missing data stays missing."
-      actions={
-        <Button type="button" variant="secondary" onClick={() => void refresh()} disabled={busy}>
-          {busy ? "Ingesting" : "Re-ingest"}
-        </Button>
-      }
+      lede="Live market observations, transparent factor weights and deterministic scoring. Missing data stays missing."
     >
       <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
         <div className="grid gap-4 sm:grid-cols-3">
           <Panel>
-            <Stat label="Source" value={source || "none"} hint={error ?? "live fetch"} />
+            <Stat label="Source" value={initial.source || "none"} hint={initial.error ?? "live fetch"} />
           </Panel>
           <Panel>
             <Stat label="Opportunities" value={String(items.length)} />
@@ -77,7 +38,7 @@ function IntelligencePage() {
             <Stat
               label="Base block"
               value={initial.chain ? String(initial.chain.blockNumber) : "—"}
-              hint={initial.chain ? timeAgo(initial.chain.fetchedAt) : "rpc missed"}
+              hint={initial.chain ? timeAgo(initial.chain.fetchedAt) : "rpc unavailable"}
             />
           </Panel>
         </div>
@@ -98,11 +59,7 @@ function IntelligencePage() {
                   <tr
                     key={o.id}
                     className="cursor-pointer border-t border-border hover:bg-secondary"
-                    onClick={() => {
-                      setSelected(o);
-                      setBrief(null);
-                      setBriefErr(null);
-                    }}
+                    onClick={() => setSelected(o)}
                   >
                     <td className="px-4 py-3">
                       <div>{o.title}</div>
@@ -121,7 +78,7 @@ function IntelligencePage() {
             </table>
             {items.length === 0 ? (
               <p className="px-4 py-8 text-sm text-muted-foreground">
-                No observed rows. Telemetry was not fabricated.
+                No observed rows are currently available.
               </p>
             ) : null}
           </div>
@@ -129,7 +86,7 @@ function IntelligencePage() {
           <Panel>
             {selected ? (
               <>
-                <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Selected</p>
+                <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Selected opportunity</p>
                 <h2 className="mt-2 font-serif text-xl">{selected.title}</h2>
                 <p className="mt-1 text-xs text-muted-foreground">{selected.source}</p>
                 <dl className="mt-4 space-y-2 text-sm">
@@ -140,30 +97,24 @@ function IntelligencePage() {
                     </div>
                   ))}
                 </dl>
-                <div className="mt-5 flex flex-col gap-2">
-                  <Button
-                    type="button"
-                    onClick={() => {
-                      setDraft({
-                        opportunityId: selected.id,
-                        opportunityTitle: selected.title,
-                        name: selected.title,
-                        step: 1,
-                      });
-                    }}
-                    asChild
-                  >
-                    <Link to="/factory">Send to Factory</Link>
-                  </Button>
-                  <Button type="button" variant="secondary" disabled={busy} onClick={() => void briefSel()}>
-                    Request Grok brief
-                  </Button>
-                </div>
-                {briefErr ? <p className="mt-3 text-sm text-warn">{briefErr}</p> : null}
-                {brief ? <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{brief}</p> : null}
+                <Button
+                  className="mt-5 w-full"
+                  type="button"
+                  onClick={() => {
+                    setDraft({
+                      opportunityId: selected.id,
+                      opportunityTitle: selected.title,
+                      name: selected.title,
+                      step: 1,
+                    });
+                  }}
+                  asChild
+                >
+                  <Link to="/factory">Open in Factory</Link>
+                </Button>
               </>
             ) : (
-              <p className="text-sm text-muted-foreground">Select a row.</p>
+              <p className="text-sm text-muted-foreground">Select an opportunity to inspect its observed factors.</p>
             )}
           </Panel>
         </div>
