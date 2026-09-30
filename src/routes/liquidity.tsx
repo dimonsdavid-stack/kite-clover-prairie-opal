@@ -12,18 +12,18 @@ export const Route = createFileRoute("/liquidity")({
 
 function LiquidityPage() {
   const data = Route.useLoaderData();
-  const verified = data.chain?.contracts.filter((c) => c.verification === "VERIFIED").length ?? 0;
+  const codePresent = data.chain?.contracts.filter((c) => c.hasCode).length ?? 0;
 
   return (
     <Shell
       kicker="ARCLENØS Liquidity"
-      title="Verified venues. Live pairs."
-      lede="Aerodrome and Base catalog addresses are checked onchain before they are treated as available. Pair data is sourced live from Dexscreener."
+      title="Onchain venues. Live pairs."
+      lede="Base venue addresses are checked for deployed runtime code at request time. Pair data is sourced live from Dexscreener; code presence is not presented as a codehash audit."
     >
       <div className="mx-auto max-w-7xl space-y-8 px-4 py-10 sm:px-6">
         <div className="grid gap-4 md:grid-cols-3">
           <Panel>
-            <Stat label="Catalog bytecode" value={`${verified}/${data.chain?.contracts.length ?? 0}`} />
+            <Stat label="Runtime bytecode" value={`${codePresent}/${data.chain?.contracts.length ?? 0}`} hint="Live eth_getCode presence" />
           </Panel>
           <Panel>
             <Stat label="WETH pairs" value={String(data.pairs.length)} hint="Dexscreener, Base only" />
@@ -40,7 +40,7 @@ function LiquidityPage() {
               <div key={c.address} className="rounded-xl bg-card p-4 shadow-[0_0_0_1px_var(--color-border)]">
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-sm">{c.name}</span>
-                  <Badge tone={c.verification === "VERIFIED" ? "ok" : "bad"}>{c.verification}</Badge>
+                  <Badge tone={c.hasCode ? "ok" : "bad"}>{c.hasCode ? "CODE PRESENT" : "NO CODE"}</Badge>
                 </div>
                 <p className="tape mt-2 truncate text-xs text-muted-foreground">{c.address}</p>
               </div>
