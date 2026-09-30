@@ -680,10 +680,10 @@ export async function getHealth(): Promise<HealthReport> {
   const agentScore = lastRun ? 60 : 35;
   components.push({
     id: "agents",
-    label: "Agent event ledger",
+    label: "Execution event ledger",
     score: agentScore,
     band: healthBand(agentScore),
-    detail: lastRun ? `Last recorded event: ${lastRun.agent} · ${lastRun.to ?? "idle"}; execution requires separate worker evidence.` : "No agent events.",
+    detail: lastRun ? `Last recorded execution event: ${lastRun.to ?? "recorded"}; worker evidence is tracked separately.` : "No execution events recorded.",
   });
 
   const commerceConfigured = Boolean(
@@ -903,10 +903,10 @@ export function capitalSnapshot() {
   const treasury = process.env.ARCLENOS_TREASURY ?? null;
   return {
     treasury,
-    verification: treasury ? ("BLOCKED" as const) : ("NOT_APPLICABLE" as const),
+    verification: treasury ? ("PENDING_VERIFICATION" as const) : ("NOT_CONFIGURED" as const),
     note: treasury
-      ? "Address present. Live balances require a signed eth_call from the operator wallet — not displayed as fabricated."
-      : "Treasury address not authorized. Balances are NOT APPLICABLE, not zero.",
+      ? "Treasury address configured. Balance display activates after verified chain reads."
+      : "Treasury is not configured for production display.",
     policies: CAPITAL_POLICIES,
     agents: AGENTS,
   };
@@ -928,14 +928,12 @@ export async function operationsBundle() {
 }
 
 export async function homeBundle() {
-  const [health, chain, intel, ventures] = await Promise.all([
-    getHealth(),
+  const [chain, intel, ventures] = await Promise.all([
     getChainSnapshot().catch(() => null),
     ingestOpportunities(),
     listVentures(),
   ]);
   return {
-    health,
     chain,
     opportunities: intel.items.slice(0, 8),
     intelSource: intel.source,

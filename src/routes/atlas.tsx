@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { loadAtlas } from "@/lib/arclenos/fns";
 import { timeAgo } from "@/lib/arclenos/format";
 import { statusTone } from "@/lib/arclenos/pipeline";
+import { AGENTS } from "@/lib/arclenos/catalog";
 
 export const Route = createFileRoute("/atlas")({
   loader: () => loadAtlas(),
@@ -17,7 +18,7 @@ function AtlasPage() {
     <Shell
       kicker="ARCLENØS Atlas"
       title="Provenance, not marketing."
-      lede="Every composition leaves lineage, agent runs and a risk status. Mainnet addresses appear only after a real deploy."
+      lede="Every composition leaves lineage, execution records and a risk status. Mainnet addresses appear only after a verified deployment."
     >
       <div className="mx-auto max-w-7xl space-y-8 px-4 py-10 sm:px-6">
         <div className="grid gap-4 md:grid-cols-3">
@@ -25,7 +26,7 @@ function AtlasPage() {
             <Stat label="Ventures" value={String(data.ventures.length)} />
           </Panel>
           <Panel>
-            <Stat label="Agent runs" value={String(data.runs.length)} />
+            <Stat label="Execution records" value={String(data.runs.length)} />
           </Panel>
           <Panel>
             <Stat label="Base block" value={data.chain ? String(data.chain.blockNumber) : "—"} />
@@ -64,25 +65,25 @@ function AtlasPage() {
           </table>
           {data.ventures.length === 0 ? (
             <p className="px-4 py-8 text-sm text-muted-foreground">
-              Atlas is empty until Factory registers a canary. No sample ventures are injected.
+              Atlas is empty until Factory registers a canary.
             </p>
           ) : null}
         </div>
 
         <Panel>
-          <h2 className="font-serif text-xl">Recent agent evidence</h2>
+          <h2 className="font-serif text-xl">Recent execution evidence</h2>
           <ul className="mt-4 space-y-3">
             {data.runs.slice(0, 12).map((r) => (
               <li key={r.id} className="border-t border-border pt-3 text-sm">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span>{r.agent}</span>
+                  <span>{AGENTS.find((control) => control.id === r.agent)?.name ?? "Execution control"}</span>
                   {r.to ? <Badge tone="idle">{r.to}</Badge> : null}
                   <span className="tape text-xs text-muted-foreground">{timeAgo(r.createdAt)}</span>
                 </div>
                 <p className="mt-1 text-muted-foreground">{r.reason}</p>
               </li>
             ))}
-            {data.runs.length === 0 ? <li className="text-sm text-muted-foreground">No runs yet.</li> : null}
+            {data.runs.length === 0 ? <li className="text-sm text-muted-foreground">No execution records yet.</li> : null}
           </ul>
         </Panel>
       </div>

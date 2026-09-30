@@ -8,7 +8,7 @@ function GuardState() {
     <Shell
       kicker="ARCLENØS / Separate product"
       title="GuardState"
-      lede="A separate institutional control plane for governed financial automation. It is not the ARCLENØS venture factory."
+      lede="Institutional control plane for governed financial automation, policy enforcement and decision evidence."
     >
       <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
         <Panel>

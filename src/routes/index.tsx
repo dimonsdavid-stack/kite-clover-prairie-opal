@@ -23,7 +23,7 @@ function toneFromBand(band: string): "ok" | "warn" | "bad" | "idle" {
 
 function Home() {
   const data = Route.useLoaderData();
-  const verified = data.chain?.contracts.filter((c) => c.verification === "VERIFIED").length ?? 0;
+  const codePresent = data.chain?.contracts.filter((c) => c.hasCode).length ?? 0;
   const total = data.chain?.contracts.length ?? 0;
 
   return (
@@ -36,8 +36,7 @@ function Home() {
           Discover demand. Compose the business. Operate it on Base.
         </h1>
         <p className="mt-6 max-w-xl text-base leading-relaxed text-muted-foreground">
-          ARCLENØS finds real economic activity, builds revenue-producing products from a hardened primitive
-          library, and runs them with agent teams — under policy, with evidence, never on invented telemetry.
+          ARCLENØS identifies real economic activity, composes revenue-producing products from a hardened primitive\n          library, and operates them under explicit policy, capital limits, and verifiable execution evidence.
         </p>
         <div className="mt-8 flex flex-wrap gap-3">
           <Button asChild>
@@ -66,22 +65,22 @@ function Home() {
           <div className="bg-background px-4 py-6 sm:px-6">
             <Stat
               label="Bytecode"
-              value={`${verified}/${total}`}
-              hint="Live eth_getCode on catalog addresses"
-            />
-          </div>
-          <div className="bg-background px-4 py-6 sm:px-6">
-            <Stat
-              label="Health"
-              value={data.health ? String(data.health.overall) : "—"}
-              hint={data.health?.band ?? "unscored"}
+              value={`${codePresent}/${total}`}
+              hint="Runtime bytecode present on Base"
             />
           </div>
           <div className="bg-background px-4 py-6 sm:px-6">
             <Stat
               label="Opportunities"
               value={String(data.opportunities.length)}
-              hint={data.intelError ? data.intelError : data.intelSource}
+              hint={data.intelError ? "Market data temporarily unavailable" : "Observed Base market data"}
+            />
+          </div>
+          <div className="bg-background px-4 py-6 sm:px-6">
+            <Stat
+              label="Product surfaces"
+              value={String(PRODUCTS.length)}
+              hint="One governed primitive library"
             />
           </div>
         </div>
@@ -113,7 +112,7 @@ function Home() {
           <Panel>
             <p className="text-sm text-muted-foreground">
               No observed opportunities this fetch.
-              {data.intelError ? ` ${data.intelError}` : " Telemetry was empty — nothing was invented."}
+              {data.intelError ? ` ${data.intelError}` : " No qualifying observations were returned for this refresh."}
             </p>
           </Panel>
         ) : (
@@ -153,7 +152,7 @@ function Home() {
 
       <section className="mx-auto max-w-7xl px-4 pb-20 sm:px-6">
         <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Product family</p>
-        <h2 className="mt-2 font-serif text-2xl tracking-tight">One primitive library. Eleven surfaces.</h2>
+        <h2 className="mt-2 font-serif text-2xl tracking-tight">One primitive library. {PRODUCTS.length} product surfaces.</h2>
         <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {PRODUCTS.map((p) => (
             <a
@@ -175,14 +174,14 @@ function Home() {
         <section className="border-t border-border">
           <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6">
             <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-              Verified Base dependencies · {timeAgo(data.chain.fetchedAt)}
+              Live Base dependencies · {timeAgo(data.chain.fetchedAt)}
             </p>
             <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
               {data.chain.contracts.map((c) => (
                 <div key={c.address} className="rounded-xl bg-card p-4 shadow-[0_0_0_1px_var(--color-border)]">
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-sm">{c.name}</span>
-                    <Badge tone={c.verification === "VERIFIED" ? "ok" : "bad"}>{c.verification}</Badge>
+                    <Badge tone={c.hasCode ? "ok" : "bad"}>{c.hasCode ? "CODE PRESENT" : "UNAVAILABLE"}</Badge>
                   </div>
                   <p className="tape mt-2 truncate text-xs text-muted-foreground">{c.address}</p>
                 </div>

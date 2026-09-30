@@ -67,7 +67,7 @@ export const PRODUCTS: Array<{
     id: "intelligence",
     name: "Intelligence",
     kicker: "Discover",
-    lede: "Score live Base demand. Never invent unavailable telemetry.",
+    lede: "Score live Base demand from observed market data.",
     href: "/intelligence",
   },
   {
@@ -88,7 +88,7 @@ export const PRODUCTS: Array<{
     id: "launch",
     name: "Launch",
     kicker: "Form capital",
-    lede: "Adaptive graduation. No fixed 42 ETH doctrine.",
+    lede: "Evidence-driven capital formation with adaptive graduation thresholds.",
     href: "/launch",
   },
   {
@@ -123,7 +123,7 @@ export const PRODUCTS: Array<{
     id: "api",
     name: "API",
     kicker: "Integrate",
-    lede: "Machine-readable pricing, idempotency, receipts.",
+    lede: "Machine-readable pricing, idempotent requests and verifiable receipts.",
     href: "/developers",
   },
   {
@@ -137,7 +137,7 @@ export const PRODUCTS: Array<{
     id: "guardstate",
     name: "GuardState",
     kicker: "Control plane",
-    lede: "Separate institutional finance control product. Not the factory.",
+    lede: "Institutional finance control plane for governed execution, policy enforcement and audit evidence.",
     href: "/guardstate",
   },
 ];
@@ -198,7 +198,7 @@ export const PRIMITIVES: Primitive[] = [
     name: "FeeRouter",
     version: "1.0.0",
     category: "economics",
-    summary: "Configurable bps split. No universal 5% doctrine.",
+    summary: "Configurable basis-point splits with explicit recipient validation.",
     invariants: ["splits sum to 10_000 bps", "zero-address recipients rejected"],
     requiredBy: [
       "yield-vault",
@@ -232,7 +232,7 @@ export const PRIMITIVES: Primitive[] = [
     version: "1.0.0",
     category: "capital",
     summary: "Policy-gated balances: available, committed, obligated.",
-    invariants: ["agents cannot exceed caps", "emergency pause halts outflows"],
+    invariants: ["automated execution cannot exceed caps", "emergency pause halts outflows"],
     requiredBy: ["yield-vault", "launch-controller", "liquidity-router"],
   },
   {
@@ -328,7 +328,7 @@ export const PRIMITIVES: Primitive[] = [
     name: "X402PaymentAdapter",
     version: "1.0.0",
     category: "commerce",
-    summary: "Requirement → payment → verify → settle → receipt. No fake settlement.",
+    summary: "Requirement → payment → verify → settle → receipt, gated by verified settlement evidence.",
     invariants: ["unverified payment never unlocks service", "replay rejected via idempotency key"],
     requiredBy: ["x402-commerce"],
   },
@@ -337,7 +337,7 @@ export const PRIMITIVES: Primitive[] = [
     name: "AttributionRegistry",
     version: "1.0.0",
     category: "network",
-    summary: "Deterministic graph of creator, agent, builder, referrer, LP.",
+    summary: "Deterministic graph of creator, service, builder, referrer and LP.",
     invariants: ["edges are append-only", "weights normalized to 1e18"],
     requiredBy: ["attribution-network", "launch-controller", "x402-commerce"],
   },
@@ -569,7 +569,7 @@ export const CAPITAL_POLICIES: CapitalPolicy[] = [
     action: "REQUIRE_APPROVAL",
     resource: "commerce.settle",
     capUsd: 50,
-    reason: "Settlement requires a verified facilitator receipt, never a mocked payment.",
+    reason: "Settlement requires a verified facilitator receipt and confirmed onchain evidence.",
   },
   {
     id: "emergency",

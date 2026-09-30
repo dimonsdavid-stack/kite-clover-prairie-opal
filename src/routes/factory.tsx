@@ -6,18 +6,18 @@ import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ARCHETYPES, PRIMITIVES, primitiveById } from "@/lib/arclenos/catalog";
-import { loadIntelligence, runCompose, simulateNow } from "@/lib/arclenos/fns";
+import { loadFactory, runCompose, simulateNow } from "@/lib/arclenos/fns";
 import { useArclenos } from "@/lib/arclenos/store";
 import { usd, pct } from "@/lib/arclenos/format";
 import { assertFeeSplit } from "@/lib/arclenos/simulation";
 import type { Archetype, Composition, SimulationResult, SecurityFinding } from "@/lib/arclenos/types";
 
 export const Route = createFileRoute("/factory")({
-  loader: () => loadIntelligence(),
+  loader: () => loadFactory(),
   component: FactoryPage,
 });
 
-const STEPS = ["Opportunity", "Archetype", "Economics", "Simulate", "Security", "Canary"];
+const STEPS = ["Opportunity", "Archetype", "Economics", "Simulate", "Security", "Registration"];
 
 function FactoryPage() {
   const intel = Route.useLoaderData();
@@ -95,7 +95,7 @@ function FactoryPage() {
       setSec(res.venture.security);
       setSim(res.venture.simulation);
       setDraft({ step: 5, status: res.venture.status, ventureId: res.venture.id });
-      toast.message(res.venture.status === "CANARY" ? "Canary registered" : "Rejected by sentinel");
+      toast.message(res.venture.status === "CANARY" ? "Canary registered" : "Held by risk gate");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Compose failed");
     } finally {
@@ -106,8 +106,8 @@ function FactoryPage() {
   return (
     <Shell
       kicker="ARCLENØS Factory"
-      title="Select. Parameterize. Simulate. Register."
-      lede="Agents compose from the hardened library. They do not invent capital-bearing bytecode. Mainnet publication stays behind the deployer key."
+      title="Select. Parameterize. Simulate. Review."
+      lede="Explore compositions from a hardened primitive library, test economics and review risk controls. Canary registration remains restricted to authorized operators."
       actions={
         <Button type="button" variant="ghost" size="sm" onClick={() => { resetDraft(); setSim(null); setSec(null); setBlocked(null); setVentureId(null); }}>
           Reset draft
@@ -135,7 +135,7 @@ function FactoryPage() {
             <Panel>
               <h2 className="font-serif text-xl">Opportunity</h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Live Base telemetry. Source: {intel.source || "none"}. Nothing invented.
+                Observed Base market data. Source: {intel.source || "none"}.
               </p>
               {intel.error ? <p className="mt-2 text-sm text-warn">{intel.error}</p> : null}
               <div className="mt-4 max-h-[480px] overflow-auto">
@@ -331,7 +331,7 @@ function FactoryPage() {
               </Panel>
               {sec ? (
                 <Panel>
-                  <h2 className="font-serif text-xl">Sentinel findings</h2>
+                  <h2 className="font-serif text-xl">Security findings</h2>
                   <ul className="mt-4 space-y-3">
                     {sec.map((f) => (
                       <li key={f.id} className="border-t border-border pt-3">
@@ -359,8 +359,7 @@ function FactoryPage() {
             <Panel>
               <h2 className="font-serif text-xl">Canary registration</h2>
               <p className="mt-2 text-sm text-muted-foreground">
-                This writes lineage, agent runs and a canary venture. It does not publish bytecode or invent a
-                transaction hash.
+                This records the approved composition, execution evidence and canary status. Onchain publication remains a separate authorized deployment step.
               </p>
               <div className="mt-6 grid gap-4 sm:grid-cols-3">
                 <Stat label="Archetype" value={draft.archetype} />
@@ -368,9 +367,15 @@ function FactoryPage() {
                 <Stat label="Max TVL" value={usd(draft.composition.caps.maxTvlUsd, 0)} />
               </div>
               <div className="mt-6 flex flex-wrap gap-3">
-                <Button type="button" onClick={() => void onCompose()} disabled={busy || Boolean(feeError)}>
-                  {busy ? "Agents running" : "Run agent pipeline"}
-                </Button>
+                {intel.canOperate ? (
+                  <Button type="button" onClick={() => void onCompose()} disabled={busy || Boolean(feeError)}>
+                    {busy ? "Registering..." : "Register canary"}
+                  </Button>
+                ) : (
+                  <Button asChild variant="secondary">
+                    <a href="/login?next=%2Ffactory">Operator sign-in required</a>
+                  </Button>
+                )}
                 {ventureId ? (
                   <Button asChild variant="secondary">
                     <Link to="/atlas">Open Atlas</Link>
