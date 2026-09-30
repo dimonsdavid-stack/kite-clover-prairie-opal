@@ -83,26 +83,32 @@ export const loadVenture = createServerFn({ method: "GET" })
   });
 
 export const loadOperations = createServerFn({ method: "GET" }).handler(async () => {
-    const { authorizeAction } = await import("./access.server");
+  const { authorizeAction } = await import("./access.server");
+  try {
     await authorizeAction("operator");
+  } catch (error) {
+    const { AccessError } = await import("./access-policy");
+    if (error instanceof AccessError && (error.status === 401 || error.status === 403)) {
+      return { authorized: false as const, reason: error.message };
+    }
+    throw error;
+  }
 
   const { operationsBundle } = await import("./runtime.server");
-  return operationsBundle();
+  return { authorized: true as const, ...(await operationsBundle()) };
 });
 
 export const loadCapital = createServerFn({ method: "GET" }).handler(async () => {
-    const { authorizeAction } = await import("./access.server");
-    await authorizeAction("operator");
-
+  // Capital is a read-only evidence surface. Privileged treasury mutations remain
+  // separately operator/treasury authorized at their mutation boundaries.
   const { capitalSnapshot, getHealth, listRevenue } = await import("./runtime.server");
   const [health, revenue] = await Promise.all([getHealth(), listRevenue()]);
   return { ...capitalSnapshot(), health, revenue };
 });
 
 export const loadNetwork = createServerFn({ method: "GET" }).handler(async () => {
-    const { authorizeAction } = await import("./access.server");
-    await authorizeAction("operator");
-
+  // Network is a public read-only attribution surface. Referral writes and other
+  // mutations retain their own authorization and validation.
   const { listReferrals, funnelCounts } = await import("./runtime.server");
   return { referrals: await listReferrals(), funnel: await funnelCounts() };
 });
