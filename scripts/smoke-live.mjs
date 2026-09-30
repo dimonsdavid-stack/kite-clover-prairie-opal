@@ -10,13 +10,15 @@ if (origin.protocol !== "https:" && !["localhost", "127.0.0.1"].includes(origin.
   console.error("Smoke target must use HTTPS (except local development)");
   process.exit(2);
 }
+
 let failures = 0;
-async function check(path, validate) {
+
+async function check(path, validate, accept = "text/html") {
   try {
     const response = await fetch(new URL(path, origin), {
       redirect: "follow",
       signal: AbortSignal.timeout(12000),
-      headers: { accept: path === "/" ? "text/html" : "application/json" },
+      headers: { accept },
     });
     const body = await response.text();
     const result = validate(response, body);
@@ -27,19 +29,57 @@ async function check(path, validate) {
     console.log(JSON.stringify({ path, result: "FAIL", error: error instanceof Error ? error.name : "UNKNOWN" }));
   }
 }
-await check("/", (r, b) => r.status === 200 && /ARCLEN(?:Ø|O)S/i.test(b) && !/DeFAI C2 Trading Station/i.test(b));
+
+const publicRoutes = [
+  "/",
+  "/atlas",
+  "/capital",
+  "/commerce",
+  "/developers",
+  "/docs",
+  "/factory",
+  "/guardstate",
+  "/intelligence",
+  "/launch",
+  "/liquidity",
+  "/login",
+  "/markets",
+  "/network",
+  "/operations",
+  "/pricing",
+  "/refer",
+  "/yield",
+  "/atlas/not-a-real-venture-id",
+];
+
+for (const path of publicRoutes) {
+  await check(path, (r, b) => {
+    if (r.status !== 200) return false;
+    if (!/ARCLEN(?:Ø|O)S/i.test(b)) return false;
+    if (/DeFAI C2 Trading Station/i.test(b)) return false;
+    if (/Something went wrong|Internal Server Error/i.test(b)) return false;
+    return true;
+  });
+}
+
+await check("/operations", (r, b) =>
+  r.status === 200 && /Operator authorization required/i.test(b) && !/Something went wrong/i.test(b)
+);
+
 await check("/api/health", (r, b) => {
   if (![200, 503].includes(r.status)) return false;
   const o = JSON.parse(b);
   return o.service === "ARCLENOS" && o.checks && typeof o.checks.database === "string";
-});
+}, "application/json");
+
 await check("/api/v1/pricing", (r, b) => {
   if (![200, 503].includes(r.status)) return false;
   const o = JSON.parse(b);
   return Array.isArray(o.skus) || o.error === "SERVICE_UNAVAILABLE";
-});
+}, "application/json");
+
 if (failures) {
   console.error("Production route smoke failed; do not promote this deployment.");
   process.exit(1);
 }
-console.log("Read-only smoke passed. Live payments, contracts and revenue remain separately gated.");
+console.log("Read-only route smoke passed. Live payments, contracts and revenue remain separately gated.");
