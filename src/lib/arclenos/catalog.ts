@@ -95,7 +95,7 @@ export const PRODUCTS: Array<{
     id: "commerce",
     name: "Commerce",
     kicker: "Transact",
-    lede: "Agent-native paid APIs. x402 quotes are real requirements, never fake settlement.",
+    lede: "Paid APIs with exact Base USDC requirements, settlement evidence and receipts.",
     href: "/commerce",
   },
   {
@@ -130,14 +130,14 @@ export const PRODUCTS: Array<{
     id: "capital",
     name: "Capital",
     kicker: "Govern",
-    lede: "Treasury with ALLOW / DENY / CAP / PAUSE. No unconstrained LLM signer.",
+    lede: "Policy-gated treasury controls with ALLOW / DENY / CAP / PAUSE.",
     href: "/capital",
   },
   {
     id: "guardstate",
     name: "GuardState",
     kicker: "Control plane",
-    lede: "Separate institutional agentic-finance control product. Not the factory.",
+    lede: "Separate institutional finance control product. Not the factory.",
     href: "/guardstate",
   },
 ];
@@ -240,7 +240,7 @@ export const PRIMITIVES: Primitive[] = [
     name: "AccessPolicy",
     version: "1.0.0",
     category: "security",
-    summary: "Role and method allowlists for agent wallets.",
+    summary: "Role and method allowlists for operator and service wallets.",
     invariants: ["default deny", "least privilege"],
     requiredBy: [
       "yield-vault",
@@ -368,7 +368,7 @@ export const PRIMITIVES: Primitive[] = [
   },
   {
     id: "agent-wallet-policy",
-    name: "AgentWalletPolicy",
+    name: "WalletPolicy",
     version: "1.0.0",
     category: "security",
     summary: "Per-tx, per-session, daily caps and destination allowlists.",
@@ -434,8 +434,8 @@ export const ARCHETYPES: Array<{
   },
   {
     id: "x402-commerce",
-    name: "Agent commerce",
-    summary: "Paid machine APIs with x402 requirements, receipts and attribution.",
+    name: "API commerce",
+    summary: "Paid APIs with x402 requirements, verifiable receipts and attribution.",
     primitives: [
       "factory",
       "registry",
@@ -487,7 +487,7 @@ export const ARCHETYPES: Array<{
   {
     id: "attribution-network",
     name: "Attribution network",
-    summary: "Creator → agent → distributor → referrer graph with sybil defenses.",
+    summary: "Creator → service → distributor → referrer graph with sybil defenses.",
     primitives: [
       "factory",
       "registry",
@@ -516,32 +516,32 @@ export const AGENTS: Array<{
   mandate: string;
   authority: string;
 }> = [
-  { id: "scout", name: "Scout swarm", mandate: "Ingest Base, venue and public signals.", authority: "read-only" },
-  { id: "opportunity", name: "Opportunity engine", mandate: "Score demand. Persist factors.", authority: "write scores" },
-  { id: "architect", name: "Venture architect", mandate: "Map opportunity to archetype.", authority: "propose" },
-  { id: "composer", name: "Protocol composer", mandate: "Select hardened modules only.", authority: "compose" },
-  { id: "simulator", name: "Economic simulator", mandate: "BASE/BULL/BEAR/STRESS/ADVERSARIAL.", authority: "simulate" },
-  { id: "sentinel", name: "Security sentinel", mandate: "Attack surface and invariant review.", authority: "gate" },
-  { id: "launch", name: "Launch agent", mandate: "Coordinate bounded deployment.", authority: "require approval" },
-  { id: "capital", name: "Capital engine", mandate: "Permit capital within policy.", authority: "cap" },
-  { id: "liquidity", name: "Liquidity agent", mandate: "Lifecycle of LP and routes.", authority: "cap" },
-  { id: "distribution", name: "Distribution swarm", mandate: "Launch and referral workflows.", authority: "propose" },
-  { id: "revenue", name: "Revenue agent", mandate: "Measure real consideration only.", authority: "observe" },
-  { id: "treasury", name: "Treasury agent", mandate: "Balances, runway, obligations.", authority: "require approval" },
+  { id: "scout", name: "Market data ingestion", mandate: "Ingest Base, venue and public signals.", authority: "read-only" },
+  { id: "opportunity", name: "Opportunity scoring", mandate: "Score demand. Persist factors.", authority: "write scores" },
+  { id: "architect", name: "Venture architecture", mandate: "Map opportunity to archetype.", authority: "propose" },
+  { id: "composer", name: "Protocol composition", mandate: "Select hardened modules only.", authority: "compose" },
+  { id: "simulator", name: "Scenario simulation", mandate: "BASE/BULL/BEAR/STRESS/ADVERSARIAL.", authority: "simulate" },
+  { id: "sentinel", name: "Risk and invariant review", mandate: "Attack surface and invariant review.", authority: "gate" },
+  { id: "launch", name: "Deployment coordinator", mandate: "Coordinate bounded deployment.", authority: "require approval" },
+  { id: "capital", name: "Capital policy engine", mandate: "Permit capital within policy.", authority: "cap" },
+  { id: "liquidity", name: "Liquidity operations", mandate: "Lifecycle of LP and routes.", authority: "cap" },
+  { id: "distribution", name: "Distribution workflows", mandate: "Launch and referral workflows.", authority: "propose" },
+  { id: "revenue", name: "Revenue accounting", mandate: "Measure real consideration only.", authority: "observe" },
+  { id: "treasury", name: "Treasury controls", mandate: "Balances, runway, obligations.", authority: "require approval" },
   { id: "auditor", name: "Performance auditor", mandate: "Outcomes vs assumptions.", authority: "observe" },
-  { id: "healing", name: "Healing agent", mandate: "Detect, contain, repair within bounds.", authority: "bounded repair" },
-  { id: "optimization", name: "Optimization agent", mandate: "Bounded improvements.", authority: "propose" },
+  { id: "healing", name: "Recovery controller", mandate: "Detect, contain, repair within bounds.", authority: "bounded repair" },
+  { id: "optimization", name: "Optimization controller", mandate: "Bounded improvements.", authority: "propose" },
   { id: "guardian", name: "Guardian", mandate: "Global policy and emergency containment.", authority: "pause" },
   { id: "oracle", name: "Audit oracle", mandate: "Append-only evidence of transitions.", authority: "append" },
 ];
 
 export const CAPITAL_POLICIES: CapitalPolicy[] = [
   {
-    id: "no-unbounded-llm",
+    id: "no-unbounded-authority",
     action: "DENY",
     resource: "treasury.unrestricted",
     capUsd: 0,
-    reason: "General-purpose LLM has no unrestricted treasury authority.",
+    reason: "No unrestricted treasury authority is granted to automated execution.",
   },
   {
     id: "vault-canary",
@@ -582,11 +582,11 @@ export const CAPITAL_POLICIES: CapitalPolicy[] = [
 
 export const COMMERCE_SKUS = [
   {
-    id: "intel.brief",
-    name: "Opportunity brief",
-    description: "Scored Base opportunities plus factor breakdown.",
+    id: "intel.opportunity",
+    name: "Opportunity analysis",
+    description: "Observed Base opportunity metrics with deterministic factor breakdown.",
     usdc: "0.25",
-    resource: "/api/v1/intelligence/brief",
+    resource: "/api/v1/intelligence/opportunity",
   },
   {
     id: "sim.stress",

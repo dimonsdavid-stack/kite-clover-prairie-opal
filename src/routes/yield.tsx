@@ -58,7 +58,7 @@ function YieldPage() {
         <Panel>
           <h2 className="font-serif text-xl">Share math playground</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            VIRTUAL_ASSETS = 1, VIRTUAL_SHARES = 1000. Deterministic — the LLM never overrides this.
+            VIRTUAL_ASSETS = 1, VIRTUAL_SHARES = 1000. The calculation is deterministic and policy-bound.
           </p>
           <div className="mt-5 grid gap-4 sm:grid-cols-3">
             <div>
