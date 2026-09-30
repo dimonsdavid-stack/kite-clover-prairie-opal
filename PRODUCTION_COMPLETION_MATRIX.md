@@ -14,3 +14,4 @@ Canonical domain observed serving older DeFAI C2 login on 2026-09-27. User subse
 
 Work is implementation in progress. Credentials are not substitutes for any missing implementation or verification.
 <!-- deployment-trigger: reconnect Vercel Git integration after route repair; no application behavior change -->
+<!-- deployment-trigger: client-readiness commissioning production release -->
