@@ -53,7 +53,7 @@ function CommercePage() {
     setActive(id);
     setStatus(null);
     setResult("");
-    setBody(JSON.stringify(id === "intel.brief" ? { opportunityId: "" } : { composition }, null, 2));
+    setBody(JSON.stringify(id === "intel.opportunity" ? { opportunityId: "" } : { composition }, null, 2));
   }
 
   function parseRequestBody() {
@@ -61,31 +61,6 @@ function CommercePage() {
       return JSON.parse(body) as unknown;
     } catch {
       throw new Error("Request JSON is invalid.");
-    }
-  }
-
-  async function requestRequirements() {
-    if (!sku) return;
-    setBusy(true);
-    setStatus(null);
-    try {
-      const requestBody = parseRequestBody();
-      const response = await fetch(sku.resource, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(requestBody),
-      });
-      const responseJson = await responseBody(response);
-      setStatus(response.status);
-      setResult(JSON.stringify({
-        status: response.status,
-        paymentRequired: response.headers.get("PAYMENT-REQUIRED"),
-        body: responseJson,
-      }, null, 2));
-    } catch (error) {
-      setResult(error instanceof Error ? error.message : "Request failed.");
-    } finally {
-      setBusy(false);
     }
   }
 
@@ -175,7 +150,7 @@ function CommercePage() {
     <Shell
       kicker="ARCLENØS Commerce"
       title="Buy a useful API response."
-      lede="Base USDC payments for opportunity briefs, economic simulations and configuration reviews. The wallet signs an exact, short-lived x402 authorization; ARCLENØS settles only the displayed amount."
+      lede="Base USDC payments for deterministic opportunity analysis, economic simulation and configuration review. The wallet signs an exact, short-lived x402 authorization; ARCLENØS settles only the displayed amount."
     >
       <div className="mx-auto max-w-7xl space-y-8 px-4 py-10 sm:px-6">
         <div className="grid gap-4 md:grid-cols-3">
@@ -186,7 +161,7 @@ function CommercePage() {
             <Stat
               label="Treasury recipient"
               value={data.treasurySet ? "configured" : "unset"}
-              hint="Live payments require facilitator and chain verification"
+              hint={data.commerceConfigured ? "Settlement rail configured" : "Checkout disabled until settlement configuration is complete"}
             />
           </Panel>
           <Panel>
@@ -249,17 +224,12 @@ function CommercePage() {
             />
 
             <div className="mt-4 flex flex-wrap gap-3">
-              <Button
-                disabled={busy}
-                variant="secondary"
-                onClick={() => void requestRequirements()}
-              >
-                {busy ? "Working..." : "Inspect payment requirement"}
-              </Button>
-              <Button disabled={busy || !sku} onClick={() => void payAndRun()}>
+              <Button disabled={busy || !sku || !data.commerceConfigured} onClick={() => void payAndRun()}>
                 {busy
-                  ? "Working..."
-                  : "Pay with wallet · $" + (sku?.usdc ?? "-") + " USDC"}
+                  ? "Processing..."
+                  : data.commerceConfigured
+                    ? "Pay with wallet · $" + (sku?.usdc ?? "-") + " USDC"
+                    : "Checkout unavailable"}
               </Button>
             </div>
 
@@ -280,7 +250,9 @@ function CommercePage() {
               </h3>
               <pre className="mt-2 max-h-96 overflow-auto whitespace-pre-wrap break-all text-xs leading-relaxed text-muted-foreground">
                 {result ||
-                  "Select a service. Inspect the requirement or pay directly with your wallet."}
+                  (data.commerceConfigured
+                    ? "Select a service and pay directly with your wallet."
+                    : "Checkout is disabled until production settlement configuration is complete.")}
               </pre>
             </div>
           </Panel>
