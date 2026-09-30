@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { loadVenture } from "@/lib/arclenos/fns";
 import { timeAgo, usd, pct } from "@/lib/arclenos/format";
 import { statusTone } from "@/lib/arclenos/pipeline";
+import { AGENTS, primitiveById } from "@/lib/arclenos/catalog";
 
 export const Route = createFileRoute("/atlas/$id")({
   loader: ({ params }) => loadVenture({ data: { id: params.id } }),
@@ -42,7 +43,7 @@ function VenturePage() {
             <Stat label="Primitives" value={String(venture.composition?.primitives.length ?? 0)} />
           </Panel>
           <Panel>
-            <Stat label="Created by" value={venture.lineage.createdBy} />
+            <Stat label="Created by" value={venture.lineage.createdBy === "agent" ? "automation" : venture.lineage.createdBy} />
           </Panel>
         </div>
         {venture.simulation ? (
@@ -91,7 +92,19 @@ function VenturePage() {
         <Panel>
           <h2 className="font-serif text-xl">Lineage</h2>
           <pre className="mt-4 overflow-x-auto text-xs text-muted-foreground">
-            {JSON.stringify({ lineage: venture.lineage, composition: venture.composition, config: venture.config }, null, 2)}
+            {JSON.stringify({
+              lineage: {
+                ...venture.lineage,
+                createdBy: venture.lineage.createdBy === "agent" ? "automation" : venture.lineage.createdBy,
+              },
+              composition: venture.composition
+                ? {
+                    ...venture.composition,
+                    primitives: venture.composition.primitives.map((id) => primitiveById(id)?.name ?? id),
+                  }
+                : venture.composition,
+              config: venture.config,
+            }, null, 2)}
           </pre>
         </Panel>
         <Panel>
@@ -99,7 +112,7 @@ function VenturePage() {
           <ul className="mt-4 space-y-3 text-sm">
             {runs.map((r) => (
               <li key={r.id} className="border-t border-border pt-3">
-                <span className="text-foreground">{r.agent}</span>
+                <span className="text-foreground">{AGENTS.find((control) => control.id === r.agent)?.name ?? "Execution control"}</span>
                 {r.from ? <span className="text-muted-foreground"> {r.from} → {r.to}</span> : null}
                 <p className="mt-1 text-muted-foreground">{r.reason}</p>
               </li>
