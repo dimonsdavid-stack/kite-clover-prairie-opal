@@ -85,6 +85,24 @@ function toSql(run: Run): Sql {
   return sql;
 }
 
+function normalizedPostgresConnectionString(value: string | undefined): string | undefined {
+  if (!value) return value;
+  try {
+    const url = new URL(value);
+    const mode = url.searchParams.get("sslmode");
+    // pg currently treats these modes as verify-full but warns that the aliases
+    // will adopt weaker libpq semantics in the next major release. Preserve the
+    // current strict behavior explicitly without modifying the stored secret.
+    if (mode === "require" || mode === "prefer" || mode === "verify-ca") {
+      url.searchParams.set("sslmode", "verify-full");
+    }
+    return url.toString();
+  } catch {
+    // Let node-postgres report malformed connection strings normally.
+    return value;
+  }
+}
+
 function createNeonSql(): Promise<Sql> {
   globalRef.__pgSqlPromise__ ??= (async () => {
     // Regular Postgres driver: node-postgres (`pg`) — works directly with Neon's
@@ -93,7 +111,7 @@ function createNeonSql(): Promise<Sql> {
     types.setTypeParser(OID_INT8, Number);
     types.setTypeParser(OID_DATE, identity);
     types.setTypeParser(OID_INTERVAL, identity);
-    const pool = new Pool({ connectionString: databaseUrl });
+    const pool = new Pool({ connectionString: normalizedPostgresConnectionString(databaseUrl) });
     return toSql(async <T>(text: string, params: unknown[]) => {
       const res = await pool.query(text, params);
       return res.rows as T[];
