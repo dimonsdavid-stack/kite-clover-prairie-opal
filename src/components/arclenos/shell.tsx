@@ -128,7 +128,7 @@ export function Shell({
               <span className="font-serif">ARCLENØS</span>
             </div>
             <p className="mt-3 max-w-sm text-xs leading-relaxed text-muted-foreground">
-              Autonomous onchain venture infrastructure on Base. Tokens are a primitive. They are not the company.
+              Autonomous onchain venture infrastructure on Base, from observed demand to governed deployment and verifiable operations.
             </p>
           </div>
           <div className="grid grid-cols-2 gap-x-10 gap-y-2 text-sm text-muted-foreground sm:grid-cols-3">
