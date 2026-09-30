@@ -95,7 +95,7 @@ function VenturePage() {
           </pre>
         </Panel>
         <Panel>
-          <h2 className="font-serif text-xl">Agent log</h2>
+          <h2 className="font-serif text-xl">Execution log</h2>
           <ul className="mt-4 space-y-3 text-sm">
             {runs.map((r) => (
               <li key={r.id} className="border-t border-border pt-3">
