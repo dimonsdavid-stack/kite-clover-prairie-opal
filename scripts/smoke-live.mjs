@@ -58,12 +58,23 @@ for (const path of publicRoutes) {
     if (!/ARCLEN(?:Ø|O)S/i.test(b)) return false;
     if (/DeFAI C2 Trading Station/i.test(b)) return false;
     if (/Something went wrong|Internal Server Error/i.test(b)) return false;
+    if (/Request Grok|Created with Grok|grok\.com|\/__grok\/|grok-project-id|old prompt/i.test(b)) return false;
     return true;
   });
 }
 
 await check("/operations", (r, b) =>
   r.status === 200 && /Operator authorization required/i.test(b) && !/Something went wrong/i.test(b)
+);
+
+await check("/intelligence", (r, b) =>
+  r.status === 200 &&
+  /Open in Factory/i.test(b) &&
+  !/Request Grok|Grok brief|grok\.com|\/__grok\//i.test(b)
+);
+
+await check("/__grok/manifest.webmanifest", (r, b) =>
+  r.status === 404 && !/Grok App|grok\.com/i.test(b)
 );
 
 await check("/api/health", (r, b) => {
