@@ -18,7 +18,7 @@ function LiquidityPage() {
     <Shell
       kicker="ARCLENØS Liquidity"
       title="Verified venues. Live pairs."
-      lede="Aerodrome and Base catalog addresses are checked with eth_getCode at request time. Pair data is Dexscreener. Nothing is hard-copied from an old prompt and trusted blindly."
+      lede="Aerodrome and Base catalog addresses are checked onchain before they are treated as available. Pair data is sourced live from Dexscreener."
     >
       <div className="mx-auto max-w-7xl space-y-8 px-4 py-10 sm:px-6">
         <div className="grid gap-4 md:grid-cols-3">
