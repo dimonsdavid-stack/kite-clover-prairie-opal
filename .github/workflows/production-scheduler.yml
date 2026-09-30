@@ -1,0 +1,59 @@
+name: ARCLENOS Production Scheduler
+
+on:
+  schedule:
+    # Offset from quarter-hour boundaries to reduce shared-runner contention.
+    - cron: "7,22,37,52 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: arclenos-production-scheduler
+  cancel-in-progress: false
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Require scheduler secret
+        env:
+          ARCLENOS_CRON_SECRET: ${{ secrets.ARCLENOS_CRON_SECRET }}
+        run: |
+          if [ -z "$ARCLENOS_CRON_SECRET" ]; then
+            echo "::error::ARCLENOS_CRON_SECRET repository secret is not configured"
+            exit 1
+          fi
+
+      - name: Invoke ARCLENOS production scheduler
+        env:
+          ARCLENOS_CRON_SECRET: ${{ secrets.ARCLENOS_CRON_SECRET }}
+        run: |
+          response_file="$(mktemp)"
+          status="$(curl --silent --show-error --location \
+            --max-time 70 \
+            --output "$response_file" \
+            --write-out "%{http_code}" \
+            --header "Authorization: Bearer $ARCLENOS_CRON_SECRET" \
+            --header "Accept: application/json" \
+            "https://www.arclenos.com/api/ops/tick")"
+
+          cat "$response_file"
+          echo
+
+          if [ "$status" != "200" ]; then
+            echo "::error::Scheduler endpoint returned HTTP $status"
+            exit 1
+          fi
+
+          node - "$response_file" <<'NODE'
+          const fs = require("fs");
+          const file = process.argv[2];
+          const body = JSON.parse(fs.readFileSync(file, "utf8"));
+          if (body.heartbeat !== true || body.durability !== "postgres") {
+            console.error("Scheduler response did not contain a durable heartbeat.");
+            process.exit(1);
+          }
+          NODE
