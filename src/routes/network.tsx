@@ -35,7 +35,7 @@ function NetworkPage() {
     <Shell
       kicker="ARCLENØS Network"
       title="Attribution with a quality weight."
-      lede="Creator → agent → distributor → referrer → LP → builder → customer. Cycles and self-deals zero the reward."
+      lede="Creator → service → distributor → referrer → LP → builder → customer. Cycles and self-deals zero the reward."
     >
       <div className="mx-auto max-w-7xl space-y-8 px-4 py-10 sm:px-6">
         <div className="grid gap-4 md:grid-cols-3">
@@ -109,7 +109,7 @@ function NetworkPage() {
                 </li>
               ))}
               {data.referrals.length === 0 ? (
-                <li className="text-muted-foreground">No clicks yet. Codes are not pre-seeded as fake users.</li>
+                <li className="text-muted-foreground">No tracked referral activity yet.</li>
               ) : null}
             </ul>
           </Panel>
